@@ -21,11 +21,11 @@ function NuevoPedidoForm() {
     })
     const [loading, setLoading] = useState(false);
 
-    const [articulos, setArticulos] = useState([]);     
-    const [selectedArticulo, setSelectedArticulo] = useState(""); 
+    const [articulos, setArticulos] = useState([]);
+    const [selectedArticulo, setSelectedArticulo] = useState("");
     const [cantidad, setCantidad] = useState(1);
 
-    const [detalles, setDetalles] = useState([]); 
+    const [detalles, setDetalles] = useState([]);
 
     // Para calcular total
     const [totalPedido, setTotalPedido] = useState(0);
@@ -47,19 +47,19 @@ function NuevoPedidoForm() {
     }, []);
 
     const handleChange = (event) => {
-        setForm({...form, [event.target.name]: event.target.value})
+        setForm({ ...form, [event.target.name]: event.target.value })
         console.log(form);
     }
 
     const handleIdentidad = (event) => {
-        let value = event.target.value.replace(/\D/g, ""); 
-            if (value.length > 4 && value.length <= 8) {
-                value = value.slice(0, 4) + "-" + value.slice(4);
-            } else if (value.length > 8) {
-                value = value.slice(0, 4) + "-" + value.slice(4, 8) + "-" + value.slice(8, 13);
-            }
+        let value = event.target.value.replace(/\D/g, "");
+        if (value.length > 4 && value.length <= 8) {
+            value = value.slice(0, 4) + "-" + value.slice(4);
+        } else if (value.length > 8) {
+            value = value.slice(0, 4) + "-" + value.slice(4, 8) + "-" + value.slice(8, 13);
+        }
         handleChange({
-            target: { name: event.target.name, value}
+            target: { name: event.target.name, value }
         });
     }
 
@@ -67,13 +67,13 @@ function NuevoPedidoForm() {
         setLoading(true);
 
         try {
-            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/newPedido`, {...form, numero_pedido: "PED"});
-            
-            const id_pedido= response.data.data.id_pedido;
+            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/newPedido`, { ...form, numero_pedido: "PED" });
+
+            const id_pedido = response.data.data.id_pedido;
             const idFormat = String(id_pedido).padStart(3, '0');
             const numeroPedidoNew = `PED${idFormat}`;
 
-            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/updatePedido/${id_pedido}`, {numero_pedido: numeroPedidoNew});
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/updatePedido/${id_pedido}`, { numero_pedido: numeroPedidoNew });
 
             message.success('Pedido creado exitosamente');
             setForm({
@@ -88,7 +88,7 @@ function NuevoPedidoForm() {
                 direccion_entrega: "",
                 observacion: "",
             });
-            
+
             const detallesConPedido = detalles.map(({ nombre, ...det }) => ({
                 ...det,
                 id_pedido
@@ -123,8 +123,20 @@ function NuevoPedidoForm() {
         const art = articulos.find(a => String(a.id_articulo) === selectedArticulo);
         if (!art) return;
 
+        // Validar Stock
+        if (art.cantidad_existencia < Number(cantidad)) {
+            message.warning(`Stock insuficiente. Solo hay ${art.cantidad_existencia} unidades disponibles.`);
+            return;
+        }
+
         const existe = detalles.find(d => d.id_articulo === art.id_articulo);
         if (existe) {
+            // Validar stock con la cantidad acumulada
+            if (art.cantidad_existencia < (existe.cantidad + Number(cantidad))) {
+                message.warning(`Stock insuficiente para agregar más. Tienes ${existe.cantidad} en carrito y solo hay ${art.cantidad_existencia} disponibles.`);
+                return;
+            }
+
             const nuevos = detalles.map(d =>
                 d.id_articulo === art.id_articulo ? { ...d, cantidad: d.cantidad + Number(cantidad) } : d
             );
@@ -141,9 +153,9 @@ function NuevoPedidoForm() {
                 }
             ]);
         }
-        
+
         handleChange({
-            target: {name: "total", value: (form.total + Number(art.precio) * Number(cantidad))}
+            target: { name: "total", value: (form.total + Number(art.precio) * Number(cantidad)) }
         });
 
         // reset del selector
@@ -181,7 +193,7 @@ function NuevoPedidoForm() {
                             Nombre:
                         </label>
                         <input
-                            name = "cliente_nombre"
+                            name="cliente_nombre"
                             type="text"
                             value={form.cliente_nombre}
                             onChange={handleChange}
@@ -191,14 +203,14 @@ function NuevoPedidoForm() {
                             required
                             onInvalid={(e) => e.target.setCustomValidity('Por favor ingresa el codigo')}
                             onInput={(e) => e.target.setCustomValidity('')}
-                            />
+                        />
                     </div>
                     <div className="flex-1">
                         <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
                             Telefono:
                         </label>
                         <input
-                            name = "cliente_telefono"
+                            name="cliente_telefono"
                             type="text"
                             value={form.cliente_telefono}
                             onChange={handleChange}
@@ -208,7 +220,7 @@ function NuevoPedidoForm() {
                             required
                             onInvalid={(e) => e.target.setCustomValidity('Por favor ingresa el nombre')}
                             onInput={(e) => e.target.setCustomValidity('')}
-                            />
+                        />
                     </div>
                 </div>
 
@@ -219,7 +231,7 @@ function NuevoPedidoForm() {
                             Identidad:
                         </label>
                         <input
-                            name = "cliente_identidad"
+                            name="cliente_identidad"
                             type="text"
                             maxLength="17"
                             value={form.cliente_identidad}
@@ -230,7 +242,7 @@ function NuevoPedidoForm() {
                             required
                             onInvalid={(e) => e.target.setCustomValidity('Por favor ingresa el codigo')}
                             onInput={(e) => e.target.setCustomValidity('')}
-                            />
+                        />
                     </div>
                 </div>
 
@@ -239,8 +251,8 @@ function NuevoPedidoForm() {
                     <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
                         Dirección:
                     </label>
-                    <textarea 
-                        name = "direccion_entrega"
+                    <textarea
+                        name="direccion_entrega"
                         value={form.direccion_entrega}
                         onChange={handleChange}
                         placeholder="Ingresa la dirección de entrega"
@@ -255,8 +267,8 @@ function NuevoPedidoForm() {
                     <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
                         Observación:
                     </label>
-                    <textarea 
-                        name = "observacion"
+                    <textarea
+                        name="observacion"
                         value={form.observacion}
                         onChange={handleChange}
                         placeholder="Ingresa las observaciones adicionales para la entrega"
@@ -327,10 +339,10 @@ function NuevoPedidoForm() {
                                     <td className="p-2">{d.cantidad}</td>
                                     <td className="p-2">L.{d.precio_unitario * d.cantidad}</td>
                                     <td className="p-2 text-right">
-                                        <button 
+                                        <button
                                             className="text-red-600"
                                             onClick={() => eliminarDetalle(i)}>
-                                                Eliminar
+                                            Eliminar
                                         </button>
                                     </td>
                                 </tr>
@@ -356,12 +368,12 @@ function NuevoPedidoForm() {
                                 name="costo_envio"
                                 type="number"
                                 value={form.costo_envio}
-                                onChange={handleChange}  
+                                onChange={handleChange}
                                 placeholder="Precio de venta"
                                 className="w-full pl-10 pr-4 py-3 bg-gray-200 border border-gray-300 rounded-lg focus:outline-none focus:bg-white transition-colors"
                                 required
                             />
-                            </div>
+                        </div>
                     </div>
                     <div className="flex-1">
                         <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
@@ -373,7 +385,7 @@ function NuevoPedidoForm() {
                                 L.
                             </span>
                             <input
-                                name = "total"
+                                name="total"
                                 type="number"
                                 value={Number(form.total) + Number(form.costo_envio)}
                                 onChange={handleChange}
@@ -383,23 +395,23 @@ function NuevoPedidoForm() {
                                 onInvalid={(e) => e.target.setCustomValidity('Por favor ingresa el nombre')}
                                 onInput={(e) => e.target.setCustomValidity('')}
                                 disabled
-                                />
-                            </div>
+                            />
+                        </div>
                     </div>
                 </div>
 
                 {/* Botones */}
                 <div className="flex justify-end gap-4 mt-6">
                     <button className="font-medium py-3 px-4 bg-gray-200 border border-gray-500 rounded-lg transition-colors disabled:cursor-not-allowed"
-                        onClick = {handleCancel}
-                        style={{ 
+                        onClick={handleCancel}
+                        style={{
                             color: 'gray-500',
                         }}>Cancelar
                     </button>
-                    <button 
+                    <button
                         className="font-medium py-3 px-4 rounded-lg transition-colors disabled:cursor-not-allowed"
                         onClick={handleSubmit}
-                        style={{ 
+                        style={{
                             backgroundColor: '#163269',
                             color: 'white'
                         }}>Guardar

@@ -18,6 +18,8 @@ import PerfilAdmin from "./components/PerfilAdmin.jsx";
 import MapaSeguimientoPedido from "./components/MapaSeguimientoPedido.jsx";
 import EditarUsuario from "./components/EditarUsuario.jsx";
 import VerArticulo from "./components/VerArticulo.jsx";
+import Ventas from "./components/Ventas.jsx";
+import ReportesVentas from "./components/ReportesVentas.jsx";
 
 function App() {
   return (
@@ -47,6 +49,8 @@ function App() {
           <Route path="inventario/editar-articulo/:codigo" element={<NuevoArticuloForm />} />
           <Route path="inventario/ver-articulo/:codigo" element={<VerArticulo />} />
           <Route path="inventario" element={<InventarioList />} />
+          <Route path="ventas" element={<Ventas />} />
+          <Route path="reportes" element={<ReportesVentas />} />
           <Route path="pedidos" element={<ListaPedidosAdmin />} />
           <Route path="pedidos/crear-pedido" element={<NuevoPedidoForm />} />
           <Route path="envios" element={<ListEnviosAdmin />} />

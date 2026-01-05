@@ -9,6 +9,8 @@ import {
   FaSignOutAlt,
   FaBars,
   FaTimes,
+  FaShoppingCart,
+  FaChartLine
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -54,7 +56,7 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('userProfileUpdated', handleProfileUpdate);
-    
+
     // También verificar periódicamente por si los cambios son en la misma pestaña
     const interval = setInterval(updateUserData, 1000);
 
@@ -100,7 +102,7 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
           {isCollapsed ? <FaBars className="w-5 h-5" /> : <FaTimes className="w-5 h-5" />}
         </button>
       )}
-      
+
       {/* Overlay for mobile */}
       {isMobile && !isCollapsed && (
         <div
@@ -108,10 +110,9 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
           onClick={() => setIsCollapsed(true)}
         />
       )}
-      
-      <div className={`fixed left-0 top-0 h-screen bg-white flex flex-col border-r shadow-lg transition-all duration-300 z-50 ${
-        isCollapsed ? (isMobile ? '-translate-x-full' : 'w-20') : 'w-72'
-      }`}>
+
+      <div className={`fixed left-0 top-0 h-screen bg-white flex flex-col border-r shadow-lg transition-all duration-300 z-50 ${isCollapsed ? (isMobile ? '-translate-x-full' : 'w-20') : 'w-72'
+        }`}>
         {/* Header */}
         <div className="p-6 border-b border-[#E6E6E6]">
           <div className="flex items-center justify-center gap-2">
@@ -131,31 +132,28 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
           )}
         </div>
 
-      {/*Menu */}
-      <nav className="flex-1 min-h-0 py-8 overflow-y-auto">
-        <Link
-          to="/admin/dashboard"
-          className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-            isActive("/admin/dashboard") ? "text-[#BC7D3B]" : "text-[#163269]"
-          }`}
-        >
-          <FaHome className="w-6 h-6 flex-shrink-0" />
-          {!isCollapsed && (
-            <span
-              className={`text-lg font-semibold ${
-                !isActive("/dashboard") && "underline"
+        {/*Menu */}
+        <nav className="flex-1 min-h-0 py-8 overflow-y-auto">
+          <Link
+            to="/admin/dashboard"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive("/admin/dashboard") ? "text-[#BC7D3B]" : "text-[#163269]"
               }`}
-            >
-              Dashboard
-            </span>
-          )}
+          >
+            <FaHome className="w-6 h-6 flex-shrink-0" />
+            {!isCollapsed && (
+              <span
+                className={`text-lg font-semibold ${!isActive("/dashboard") && "underline"
+                  }`}
+              >
+                Dashboard
+              </span>
+            )}
           </Link>
 
-          <Link 
-            to="/admin/inventario" 
-            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-              isActive('/admin/inventario') ? 'text-[#BC7D3B]' : 'text-[#163269]'
-            }`}
+          <Link
+            to="/admin/inventario"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive('/admin/inventario') ? 'text-[#BC7D3B]' : 'text-[#163269]'
+              }`}
           >
             <FaWarehouse className="w-6 h-6 flex-shrink-0" />
             {!isCollapsed && (
@@ -166,17 +164,41 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
           </Link>
 
           <Link
+            to="/admin/ventas"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive('/admin/ventas') ? 'text-[#BC7D3B]' : 'text-[#163269]'
+              }`}
+          >
+            <FaShoppingCart className="w-6 h-6 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className={`text-lg font-semibold ${!isActive('/admin/ventas') && 'underline'}`}>
+                Ventas
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/admin/reportes"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive('/admin/reportes') ? 'text-[#BC7D3B]' : 'text-[#163269]'
+              }`}
+          >
+            <FaChartLine className="w-6 h-6 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className={`text-lg font-semibold ${!isActive('/admin/reportes') && 'underline'}`}>
+                Reportes
+              </span>
+            )}
+          </Link>
+
+          <Link
             to="/admin/usuarios"
-            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-              isActive("/admin/usuarios") ? "text-[#BC7D3B]" : "text-[#163269]"
-            }`}
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive("/admin/usuarios") ? "text-[#BC7D3B]" : "text-[#163269]"
+              }`}
           >
             <FaUsers className="w-6 h-6 flex-shrink-0" />
             {!isCollapsed && (
               <span
-                className={`text-lg font-semibold ${
-                  !isActive("/admin/usuarios") && "underline"
-                }`}
+                className={`text-lg font-semibold ${!isActive("/admin/usuarios") && "underline"
+                  }`}
               >
                 Usuarios
               </span>
@@ -185,16 +207,14 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
 
           <Link
             to="/admin/pedidos"
-            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-              isActive("/admin/pedidos") ? "text-[#BC7D3B]" : "text-[#163269]"
-            }`}
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive("/admin/pedidos") ? "text-[#BC7D3B]" : "text-[#163269]"
+              }`}
           >
             <FaBox className="w-6 h-6 flex-shrink-0" />
             {!isCollapsed && (
               <span
-                className={`text-lg font-semibold ${
-                  !isActive("/admin/pedidos") && "underline"
-                }`}
+                className={`text-lg font-semibold ${!isActive("/admin/pedidos") && "underline"
+                  }`}
               >
                 Pedidos
               </span>
@@ -203,16 +223,14 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
 
           <Link
             to="/admin/envios"
-            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${
-              isActive("/admin/envios") ? "text-[#BC7D3B]" : "text-[#163269]"
-            }`}
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive("/admin/envios") ? "text-[#BC7D3B]" : "text-[#163269]"
+              }`}
           >
             <FaTruck className="w-6 h-6 flex-shrink-0" />
             {!isCollapsed && (
               <span
-                className={`text-lg font-semibold ${
-                  !isActive("/admin/envios") && "underline"
-                }`}
+                className={`text-lg font-semibold ${!isActive("/admin/envios") && "underline"
+                  }`}
               >
                 Envíos
               </span>
@@ -226,17 +244,17 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 relative">
                 {userData?.foto_perfil ? (
-                      <img
-                        src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'}/${userData.foto_perfil.startsWith('/') ? userData.foto_perfil.slice(1) : userData.foto_perfil}`}
-                        alt="Profile"
-                        className="w-full h-full object-cover rounded-full cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => navigate('/admin/perfil')}
-                      />
-                    ) : (
+                  <img
+                    src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'}/${userData.foto_perfil.startsWith('/') ? userData.foto_perfil.slice(1) : userData.foto_perfil}`}
+                    alt="Profile"
+                    className="w-full h-full object-cover rounded-full cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => navigate('/admin/perfil')}
+                  />
+                ) : (
                   <div className="w-full h-full bg-[#B8B8B8] rounded-full flex items-center justify-center cursor-pointer hover:bg-[#A0A0A0] transition-colors">
-                    <FaUser 
-                      onClick={() => navigate('/admin/perfil')} 
-                      className="w-8 h-8 text-black hover:text-[#BC7D3B]" 
+                    <FaUser
+                      onClick={() => navigate('/admin/perfil')}
+                      className="w-8 h-8 text-black hover:text-[#BC7D3B]"
                     />
                   </div>
                 )}

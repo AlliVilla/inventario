@@ -12,6 +12,7 @@ var trackingRouter = require("./routes/tracking");
 var estadisticasRouter = require("./routes/estadisticas");
 var usuarioController = require("./controllers/usuario");
 var detallesRouter = require('./routes/detalles');
+var ventaRouter = require("./routes/venta");
 var authMiddleware = require("./middleware/auth");
 var app = express();
 
@@ -23,19 +24,19 @@ app.use(logger("dev"));
 // Obtener URLs permitidas desde variables de entorno
 const getOrigins = () => {
   const origins = [
-    'https://localhost:5173', 
-    'http://localhost:5173', 
+    'https://localhost:5173',
+    'http://localhost:5173',
     'http://localhost:3000'
   ];
-  
+
   if (process.env.FRONTEND_URL) {
     origins.push(process.env.FRONTEND_URL);
   }
   origins.push(/^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):[0-9]+$/);
-  
+
   // Agregar cualquier dominio de Cloudflare Tunnel
   origins.push(/^https:\/\/.*\.trycloudflare\.com$/);
-  
+
   return origins;
 };
 
@@ -57,6 +58,7 @@ app.use("/api/pedidos", authMiddleware, pedidoRouter);
 app.use("/api/calificaciones", authMiddleware, calificacionRouter);
 app.use("/api/estadisticas", authMiddleware, estadisticasRouter);
 app.use("/api/detalles", authMiddleware, detallesRouter);
+app.use("/api/ventas", authMiddleware, ventaRouter);
 
 // Ruta pública para tracking de pedidos (sin autenticación)
 app.use("/cliente/tracking", trackingRouter);

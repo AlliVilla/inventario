@@ -1,0 +1,28 @@
+# Backend Docker ignore
+
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Environment
+.env
+
+# Logs
+logs
+*.log
+
+# Runtime
+uploads/*
+!uploads/.gitkeep
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

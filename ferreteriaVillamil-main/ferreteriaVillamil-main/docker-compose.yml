@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: ferreteria_db
+    environment:
+      POSTGRES_USER: classux
+      POSTGRES_PASSWORD: classux123
+      POSTGRES_DB: ferreteria_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ferreteria_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U classux -d ferreteria_development"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ferreteria_backend
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: classux
+      DB_PASSWORD: classux123
+      DB_NAME: ferreteria_development
+      PORT: 3000
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ferreteria_network
+    command: >
+      sh -c "
+        npm run db:migrate &&
+        npm run db:m:seed &&
+        npm start
+      "
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ferreteria_frontend
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - ferreteria_network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+
+networks:
+  ferreteria_network:
+    driver: bridge

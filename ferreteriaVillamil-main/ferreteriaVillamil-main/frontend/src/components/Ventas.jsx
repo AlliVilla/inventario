@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Statistic, Divider, Form } from 'antd';
+import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Statistic, Divider, Form, Modal } from 'antd';
 import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, SaveOutlined, UserOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
@@ -12,6 +12,8 @@ const Ventas = () => {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(false);
     const [clientName, setClientName] = useState('');
+    const [previewModal, setPreviewModal] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
     const usuario = JSON.parse(sessionStorage.getItem('usuario'));
 
@@ -102,6 +104,20 @@ const Ventas = () => {
         setCart(updatedCart);
     };
 
+    const updatePrice = (id_articulo, newPrice) => {
+        const item = cart.find(i => i.id_articulo === id_articulo);
+        if (!item) return;
+
+        const price = parseFloat(newPrice) || 0;
+
+        const updatedCart = cart.map(item =>
+            item.id_articulo === id_articulo
+                ? { ...item, precio_unitario: price, subtotal: item.cantidad * price }
+                : item
+        );
+        setCart(updatedCart);
+    };
+
     const removeFromCart = (id_articulo) => {
         setCart(cart.filter(item => item.id_articulo !== id_articulo));
     };
@@ -174,8 +190,20 @@ const Ventas = () => {
             dataIndex: 'precio_unitario',
             key: 'precio',
             align: 'right',
-            width: '20%',
-            render: (price) => <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>L. {price.toFixed(2)}</span>
+            width: '25%',
+            render: (price, record) => (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                    <span style={{ fontSize: '0.8rem', color: '#888' }}>L.</span>
+                    <InputNumber
+                        min={0}
+                        step={0.01}
+                        value={price}
+                        onChange={(val) => updatePrice(record.id_articulo, val)}
+                        size="small"
+                        style={{ width: '75px', textAlign: 'right', fontWeight: 'bold' }}
+                    />
+                </div>
+            )
         },
         {
             title: 'Cant.',
@@ -228,7 +256,7 @@ const Ventas = () => {
         <div style={{ height: 'calc(100vh - 100px)', padding: '20px' }}>
             <Row gutter={24} style={{ height: '100%' }}>
                 {/* Left Panel: Product List */}
-                <Col span={14} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Col span={12} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Card
                         title={<Input
                             placeholder="Buscar productos por nombre o código..."
@@ -241,22 +269,29 @@ const Ventas = () => {
                         bodyStyle={{ flex: 1, overflowY: 'auto' }}
                     >
                         <List
-                            grid={{ gutter: 16, column: 3 }}
+                            grid={{ gutter: 16, column: 2 }}
                             dataSource={filteredArticulos}
                             renderItem={item => (
                                 <List.Item>
                                     <Card
                                         hoverable
                                         cover={
-                                            <div style={{
-                                                height: 150,
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                                background: '#fff',
-                                                padding: '10px',
-                                                overflow: 'hidden'
-                                            }}>
+                                            <div
+                                                style={{
+                                                    height: 150,
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    background: '#fff',
+                                                    padding: '10px',
+                                                    overflow: 'hidden',
+                                                    cursor: 'pointer'
+                                                }}
+                                                onClick={() => {
+                                                    setSelectedProduct(item);
+                                                    setPreviewModal(true);
+                                                }}
+                                            >
                                                 {item.foto_url ? (
                                                     <img
                                                         alt={item.nombre}
@@ -302,7 +337,7 @@ const Ventas = () => {
                 </Col>
 
                 {/* Right Panel: Cart */}
-                <Col span={10} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Col span={12} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Card
                         className="shadow-lg border-0"
                         title={
@@ -326,14 +361,14 @@ const Ventas = () => {
                             />
                         </div>
 
-                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', overflowX: 'hidden' }}>
                             <Table
                                 dataSource={cart}
                                 columns={columns}
                                 rowKey="id_articulo"
                                 pagination={false}
                                 size="middle"
-                                scroll={{ y: 'calc(100vh - 450px)' }}
+                                scroll={{ y: 'calc(100vh - 450px)', x: false }}
                             />
                         </div>
 
@@ -365,6 +400,93 @@ const Ventas = () => {
                     </Card>
                 </Col>
             </Row>
+
+            {/* Product Preview Modal */}
+            <Modal
+                open={previewModal}
+                onCancel={() => setPreviewModal(false)}
+                footer={null}
+                width={600}
+                centered
+            >
+                {selectedProduct && (
+                    <div className="p-4">
+                        <div className="flex flex-col items-center">
+                            {/* Product Image */}
+                            <div style={{
+                                width: '100%',
+                                maxHeight: '400px',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                background: '#f9fafb',
+                                padding: '20px',
+                                borderRadius: '12px',
+                                marginBottom: '20px'
+                            }}>
+                                {selectedProduct.foto_url ? (
+                                    <img
+                                        alt={selectedProduct.nombre}
+                                        src={getImageUrl(selectedProduct.foto_url)}
+                                        style={{
+                                            maxWidth: '100%',
+                                            maxHeight: '350px',
+                                            objectFit: 'contain'
+                                        }}
+                                    />
+                                ) : (
+                                    <ShoppingCartOutlined style={{ fontSize: 80, color: '#ccc' }} />
+                                )}
+                            </div>
+
+                            {/* Product Details */}
+                            <div className="w-full">
+                                <h2 className="text-2xl font-bold text-[#163269] mb-2">{selectedProduct.nombre}</h2>
+                                <p className="text-gray-500 mb-4">Código: {selectedProduct.codigo}</p>
+
+                                <div className="flex justify-between items-center mb-4 p-4 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <p className="text-sm text-gray-500">Precio</p>
+                                        <p className="text-3xl font-bold text-[#163269]">L. {selectedProduct.precio}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-sm text-gray-500">Stock Disponible</p>
+                                        <p className={`text-2xl font-bold ${selectedProduct.cantidad_existencia > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {selectedProduct.cantidad_existencia}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {selectedProduct.descripcion && (
+                                    <div className="mb-4">
+                                        <p className="text-sm font-semibold text-gray-700 mb-1">Descripción:</p>
+                                        <p className="text-gray-600">{selectedProduct.descripcion}</p>
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="primary"
+                                    size="large"
+                                    block
+                                    disabled={selectedProduct.cantidad_existencia <= 0}
+                                    onClick={() => {
+                                        addToCart(selectedProduct);
+                                        setPreviewModal(false);
+                                    }}
+                                    style={{
+                                        backgroundColor: '#163269',
+                                        height: '50px',
+                                        fontSize: '1.1rem',
+                                        fontWeight: 'bold'
+                                    }}
+                                >
+                                    {selectedProduct.cantidad_existencia > 0 ? 'Agregar al Carrito' : 'Producto Agotado'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

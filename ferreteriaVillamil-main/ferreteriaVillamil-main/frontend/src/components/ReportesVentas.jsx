@@ -89,12 +89,16 @@ const ReportesVentas = () => {
             return;
         }
 
-        const start = dates[0].startOf('day');
-        const end = dates[1].endOf('day');
+        // Set start to beginning of day and end to end of day
+        const start = moment(dates[0]).startOf('day');
+        const end = moment(dates[1]).endOf('day');
 
         const filtered = ventas.filter(venta => {
+            // Parse the sale date and normalize to start of day for comparison
             const ventaDate = moment(venta.fecha_venta);
-            return ventaDate.isBetween(start, end, null, '[]');
+
+            // Check if the sale date is within the range (inclusive)
+            return ventaDate.isSameOrAfter(start) && ventaDate.isSameOrBefore(end);
         });
 
         setFilteredVentas(filtered);

@@ -47,9 +47,8 @@ services:
     command: >
       sh -c "
         npm run db:migrate &&
-        npm run db:m:seed &&
         npm start
-      "
+      " 
 
   # Frontend
   frontend:

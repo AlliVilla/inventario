@@ -11,7 +11,7 @@ const ReportesVentas = () => {
     const [ventas, setVentas] = useState([]);
     const [filteredVentas, setFilteredVentas] = useState([]);
     const [articulos, setArticulos] = useState(new Map());
-    const [dateRange, setDateRange] = useState(null);
+    const [dateRange, setDateRange] = useState([moment().startOf('day'), moment().endOf('day')]);
     const [stats, setStats] = useState({
         totalVentas: 0,
         costoTotal: 0,
@@ -34,8 +34,32 @@ const ReportesVentas = () => {
                 const ventasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/list`);
                 if (ventasRes.data) {
                     setVentas(ventasRes.data);
-                    setFilteredVentas(ventasRes.data); // Initial filtering (all)
-                    calculateStats(ventasRes.data, articlesMap);
+
+                    const startRange = moment().startOf('day');
+                    const endRange = moment().endOf('day');
+
+                    console.log("Servidor:", ventasRes.data.length, "registros totales");
+
+                    const filtered = ventasRes.data.filter(venta => {
+                        if (!venta.fecha_venta) return false;
+                        const vDate = moment(venta.fecha_venta);
+
+                        // Debug específico para el 5 de enero si no encuentra nada
+                        if (vDate.date() === 5 && vDate.month() === 0) {
+                            console.log(`Venta Jan 5 (ID: ${venta.id_venta}): ${vDate.format()}`);
+                        }
+
+                        return vDate.isBetween(startRange, endRange, null, '[]');
+                    });
+
+                    console.log("Coincidencias iniciales (Hoy):", filtered.length);
+
+                    setFilteredVentas(filtered);
+                    calculateStats(filtered, articlesMap);
+
+                    if (filtered.length === 0 && ventasRes.data.length > 0) {
+                        message.info("No hay ventas registradas hoy.");
+                    }
                 }
             } catch (error) {
                 console.error("Error loading report data:", error);
@@ -83,24 +107,30 @@ const ReportesVentas = () => {
 
     const handleDateFilter = (dates) => {
         setDateRange(dates);
-        if (!dates || dates.length === 0) {
+        if (!dates) {
             setFilteredVentas(ventas);
             calculateStats(ventas, articulos);
             return;
         }
 
-        // Set start to beginning of day and end to end of day
         const start = moment(dates[0]).startOf('day');
         const end = moment(dates[1]).endOf('day');
 
-        const filtered = ventas.filter(venta => {
-            // Parse the sale date and normalize to start of day for comparison
-            const ventaDate = moment(venta.fecha_venta);
+        console.log("Rango Filtro:", start.format(), "a", end.format());
 
-            // Check if the sale date is within the range (inclusive)
-            return ventaDate.isSameOrAfter(start) && ventaDate.isSameOrBefore(end);
+        const filtered = ventas.filter(venta => {
+            if (!venta.fecha_venta) return false;
+
+            // Forzamos la interpretación de la fecha de la base de datos
+            const vDate = moment(venta.fecha_venta);
+
+            // Comparamos usando isBetween con '[]' para que sea inclusivo [inicio, fin]
+            const isMatch = vDate.isBetween(start, end, null, '[]');
+
+            return isMatch;
         });
 
+        console.log("Resultados filtro:", filtered.length);
         setFilteredVentas(filtered);
         calculateStats(filtered, articulos);
     };
@@ -171,13 +201,16 @@ const ReportesVentas = () => {
                 </div>
                 <div className="mt-4 md:mt-0">
                     <RangePicker
+                        value={dateRange}
                         onChange={handleDateFilter}
                         className="py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:border-[#163269] transition-colors"
-                        ranges={{
-                            'Hoy': [moment(), moment()],
-                            'Esta Semana': [moment().startOf('week'), moment().endOf('week')],
-                            'Este Mes': [moment().startOf('month'), moment().endOf('month')],
-                        }}
+                        format="DD/MM/YYYY"
+                        presets={[
+                            { label: 'Hoy', value: [moment().startOf('day'), moment().endOf('day')] },
+                            { label: 'Ayer', value: [moment().subtract(1, 'days').startOf('day'), moment().subtract(1, 'days').endOf('day')] },
+                            { label: 'Esta Semana', value: [moment().startOf('week'), moment().endOf('week')] },
+                            { label: 'Este Mes', value: [moment().startOf('month'), moment().endOf('month')] },
+                        ]}
                     />
                 </div>
             </div>

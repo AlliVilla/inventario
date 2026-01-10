@@ -5,7 +5,11 @@ module.exports = (sequelize, DataTypes) => {
     fecha_venta: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     total: DataTypes.DECIMAL,
     cliente_nombre: DataTypes.STRING,
-    id_usuario_vendedor: DataTypes.INTEGER
+    id_usuario_vendedor: DataTypes.INTEGER,
+    estado: {
+      type: DataTypes.STRING,
+      defaultValue: 'Completada'
+    }
   }, {
     tableName: 'Venta',
     timestamps: false

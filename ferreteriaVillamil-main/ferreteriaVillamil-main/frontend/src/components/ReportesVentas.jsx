@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, DatePicker, Row, Col, Typography, Statistic, message } from 'antd';
-import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined } from '@ant-design/icons';
+import { Card, Table, DatePicker, Row, Col, Typography, Statistic, message, Tag, Popconfirm, Button } from 'antd';
+import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import moment from 'moment';
 
@@ -20,61 +20,63 @@ const ReportesVentas = () => {
     });
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch articles to get cost price
-                const articlesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list`);
-                const articlesMap = new Map();
-                if (articlesRes.data && articlesRes.data.data) {
-                    articlesRes.data.data.forEach(a => articlesMap.set(a.id_articulo, a));
-                }
-                setArticulos(articlesMap);
-
-                // Fetch sales (Ventas)
-                const ventasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/list`);
-                if (ventasRes.data) {
-                    setVentas(ventasRes.data);
-
-                    const startRange = moment().startOf('day');
-                    const endRange = moment().endOf('day');
-
-                    console.log("Servidor:", ventasRes.data.length, "registros totales");
-
-                    const filtered = ventasRes.data.filter(venta => {
-                        if (!venta.fecha_venta) return false;
-                        const vDate = moment(venta.fecha_venta);
-
-                        // Debug específico para el 5 de enero si no encuentra nada
-                        if (vDate.date() === 5 && vDate.month() === 0) {
-                            console.log(`Venta Jan 5 (ID: ${venta.id_venta}): ${vDate.format()}`);
-                        }
-
-                        return vDate.isBetween(startRange, endRange, null, '[]');
-                    });
-
-                    console.log("Coincidencias iniciales (Hoy):", filtered.length);
-
-                    setFilteredVentas(filtered);
-                    calculateStats(filtered, articlesMap);
-
-                    if (filtered.length === 0 && ventasRes.data.length > 0) {
-                        message.info("No hay ventas registradas hoy.");
-                    }
-                }
-            } catch (error) {
-                console.error("Error loading report data:", error);
-                message.error("Error al cargar datos de reporte");
-            }
-        };
-
         fetchData();
     }, []);
+
+    const fetchData = async () => {
+        try {
+            // Fetch articles to get cost price
+            const articlesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list`);
+            const articlesMap = new Map();
+            if (articlesRes.data && articlesRes.data.data) {
+                articlesRes.data.data.forEach(a => articlesMap.set(a.id_articulo, a));
+            }
+            setArticulos(articlesMap);
+
+            // Fetch sales (Ventas)
+            const ventasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/list`);
+            if (ventasRes.data) {
+                setVentas(ventasRes.data);
+
+                const startRange = moment().startOf('day');
+                const endRange = moment().endOf('day');
+
+                console.log("Servidor:", ventasRes.data.length, "registros totales");
+
+                const filtered = ventasRes.data.filter(venta => {
+                    if (!venta.fecha_venta) return false;
+                    const vDate = moment(venta.fecha_venta);
+
+                    // Debug específico para el 5 de enero si no encuentra nada
+                    if (vDate.date() === 5 && vDate.month() === 0) {
+                        console.log(`Venta Jan 5 (ID: ${venta.id_venta}): ${vDate.format()}`);
+                    }
+
+                    return vDate.isBetween(startRange, endRange, null, '[]');
+                });
+
+                console.log("Coincidencias iniciales (Hoy):", filtered.length);
+
+                setFilteredVentas(filtered);
+                calculateStats(filtered, articlesMap);
+
+                if (filtered.length === 0 && ventasRes.data.length > 0) {
+                    message.info("No hay ventas registradas hoy.");
+                }
+            }
+        } catch (error) {
+            console.error("Error loading report data:", error);
+            message.error("Error al cargar datos de reporte");
+        }
+    };
 
     const calculateStats = (ventasData, articlesMap) => {
         let total = 0;
         let costo = 0;
 
         ventasData.forEach(venta => {
+            if (venta.estado === 'Cancelada') return; // Ignorar ventas canceladas en los totales
+
             const totalVenta = parseFloat(venta.total) || 0;
             total += totalVenta;
 
@@ -101,8 +103,19 @@ const ReportesVentas = () => {
             totalVentas: total,
             costoTotal: costo,
             utilidadTotal: total - costo,
-            cantidadVentas: ventasData.length
+            cantidadVentas: ventasData.filter(v => v.estado !== 'Cancelada').length
         });
+    };
+
+    const handleCancelVenta = async (id_venta) => {
+        try {
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/cancel/${id_venta}`);
+            message.success("Venta cancelada y stock devuelto exitosamente");
+            fetchData(); // Recargar datos
+        } catch (error) {
+            console.error("Error al cancelar venta:", error);
+            message.error(error.response?.data?.message || "Error al cancelar la venta");
+        }
     };
 
     const handleDateFilter = (dates) => {
@@ -183,11 +196,45 @@ const ReportesVentas = () => {
                 }
                 const utilidad = (parseFloat(record.total) || 0) - costoVenta;
                 return (
-                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${utilidad >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${record.estado === 'Cancelada' ? 'bg-gray-100 text-gray-400' : (utilidad >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}`}>
                         L. {utilidad.toFixed(2)}
                     </div>
                 );
             }
+        },
+        {
+            title: <span className="font-bold text-[#163269]">Estado</span>,
+            dataIndex: 'estado',
+            key: 'estado',
+            render: (estado) => (
+                <Tag color={estado === 'Cancelada' ? 'red' : 'green'} className="font-medium">
+                    {estado === 'Cancelada' ? 'CANCELADA' : 'COMPLETADA'}
+                </Tag>
+            )
+        },
+        {
+            title: <span className="font-bold text-[#163269]">Acciones</span>,
+            key: 'acciones',
+            align: 'center',
+            render: (_, record) => (
+                record.estado !== 'Cancelada' && (
+                    <Popconfirm
+                        title="¿Estás seguro de cancelar esta venta?"
+                        description="Esta acción repondrá el stock de los productos."
+                        onConfirm={() => handleCancelVenta(record.id_venta)}
+                        okText="Sí, cancelar"
+                        cancelText="No"
+                        okButtonProps={{ danger: true }}
+                    >
+                        <Button
+                            type="text"
+                            danger
+                            icon={<CloseCircleOutlined />}
+                            className="hover:bg-red-50 flex items-center justify-center mx-auto"
+                        />
+                    </Popconfirm>
+                )
+            )
         }
     ];
 

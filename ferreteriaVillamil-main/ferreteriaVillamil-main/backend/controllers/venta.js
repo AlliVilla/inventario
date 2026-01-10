@@ -65,3 +65,49 @@ exports.getVentas = async (req, res) => {
         res.status(500).json({ message: 'Error al obtener las ventas' });
     }
 };
+
+exports.cancelVenta = async (req, res) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        console.log("Intentando cancelar venta ID:", id);
+
+        const venta = await Venta.findByPk(id, {
+            include: [{ model: Detalle_Venta }],
+            transaction
+        });
+
+        if (!venta) {
+            console.log("Venta ID", id, "no encontrada");
+            return res.status(404).json({ message: 'Venta no encontrada' });
+        }
+
+        if (venta.estado === 'Cancelada') {
+            return res.status(400).json({ message: 'La venta ya ha sido cancelada' });
+        }
+
+        // Devolver stock
+        const detalles = venta.Detalle_Venta || venta.Detalle_Ventas || [];
+        console.log("Detalles encontrados para la venta:", detalles.length);
+
+        for (const detalle of detalles) {
+            const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
+            if (articulo) {
+                console.log("Reponiendo stock para artículo:", articulo.nombre, "Cantidad:", detalle.cantidad);
+                await articulo.increment('cantidad_existencia', { by: detalle.cantidad, transaction });
+            }
+        }
+
+        // Marcar venta como cancelada
+        venta.estado = 'Cancelada';
+        await venta.save({ transaction });
+
+        await transaction.commit();
+        console.log("Venta ID", id, "cancelada con éxito");
+        res.json({ message: 'Venta cancelada con éxito y stock repuesto', venta });
+    } catch (error) {
+        await transaction.rollback();
+        console.error('Error detallado al cancelar venta:', error);
+        res.status(500).json({ message: 'Error al cancelar la venta: ' + error.message, error: error.message });
+    }
+};

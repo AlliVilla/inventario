@@ -1,0 +1,5 @@
+# Opción para PowerShell:
+Get-Content respaldo_completo.sql | docker exec -i ferreteria_db psql -U classux -d ferreteria_development
+
+para cmd
+docker exec -i ferreteria_db psql -U classux -d ferreteria_development < respaldo_completo.sql

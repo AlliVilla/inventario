@@ -11,42 +11,39 @@ const CotizacionesList = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    // Mock data for initial view matching the image
-    const [mockCotizaciones] = useState([
-        {
-            id: 1,
-            cliente: "Constructora ABC",
-            fecha: "9 de enero de 2026",
-            count: 2,
-            resumen: "Cemento Portland, Arena fina (m³)",
-            total: 13500
-        },
-        {
-            id: 2,
-            cliente: "Obras y Proyectos SA",
-            fecha: "11 de enero de 2026",
-            count: 2,
-            resumen: "Varilla 3/8\", Alambre recocido",
-            total: 11625
-        }
-    ]);
 
-    // In a real scenario, we would fetch from API
     useEffect(() => {
-        // fetchCotizaciones();
-        setCotizaciones(mockCotizaciones);
+        fetchCotizaciones();
     }, []);
 
     const fetchCotizaciones = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/cotizaciones`);
+            const response = await axios.get(`${import.meta.env.VITE_API_URL}/cotizaciones`, {
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                }
+            });
             if (response.data) {
-                setCotizaciones(response.data);
+                // Mapear los datos del backend al formato que espera la UI
+                const mappedData = response.data.map(cot => ({
+                    id: cot.id_cotizacion,
+                    cliente: cot.cliente_nombre,
+                    fecha: new Date(cot.fecha_cotizacion).toLocaleDateString('es-HN', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                    }),
+                    count: cot.Detalles?.length || 0,
+                    resumen: cot.Detalles?.slice(0, 3).map(d => d.Articulo?.nombre).join(', ') +
+                        (cot.Detalles?.length > 3 ? '...' : ''),
+                    total: parseFloat(cot.total)
+                }));
+                setCotizaciones(mappedData);
             }
         } catch (error) {
             console.error("Error fetching quotes:", error);
-            // message.error("Error al cargar el listado de cotizaciones");
+            message.error("Error al cargar el listado de cotizaciones");
         } finally {
             setLoading(false);
         }

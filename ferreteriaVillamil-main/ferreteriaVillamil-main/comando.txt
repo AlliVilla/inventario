@@ -3,3 +3,5 @@ Get-Content respaldo_completo.sql | docker exec -i ferreteria_db psql -U classux
 
 para cmd
 docker exec -i ferreteria_db psql -U classux -d ferreteria_development < respaldo_completo.sql
+
+para hacer el respaldo: docker exec -t ferreteria_db pg_dump -U classux -d ferreteria_development -F p > respaldo_completo.sql

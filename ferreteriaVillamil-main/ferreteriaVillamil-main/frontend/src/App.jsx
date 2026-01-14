@@ -20,6 +20,8 @@ import EditarUsuario from "./components/EditarUsuario.jsx";
 import VerArticulo from "./components/VerArticulo.jsx";
 import Ventas from "./components/Ventas.jsx";
 import ReportesVentas from "./components/ReportesVentas.jsx";
+import Cotizaciones from "./components/Cotizaciones.jsx";
+import CotizacionNueva from "./components/CotizacionNueva.jsx";
 
 function App() {
   return (
@@ -50,6 +52,8 @@ function App() {
           <Route path="inventario/ver-articulo/:codigo" element={<VerArticulo />} />
           <Route path="inventario" element={<InventarioList />} />
           <Route path="ventas" element={<Ventas />} />
+          <Route path="cotizaciones" element={<Cotizaciones />} />
+          <Route path="cotizaciones/nueva" element={<CotizacionNueva />} />
           <Route path="reportes" element={<ReportesVentas />} />
           <Route path="pedidos" element={<ListaPedidosAdmin />} />
           <Route path="pedidos/crear-pedido" element={<NuevoPedidoForm />} />

@@ -10,7 +10,8 @@ import {
   FaBars,
   FaTimes,
   FaShoppingCart,
-  FaChartLine
+  FaChartLine,
+  FaFileInvoice
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -89,7 +90,7 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
     navigate("/");
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
     <>
@@ -172,6 +173,19 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
             {!isCollapsed && (
               <span className={`text-lg font-semibold ${!isActive('/admin/ventas') && 'underline'}`}>
                 Ventas
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/admin/cotizaciones"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive('/admin/cotizaciones') ? 'text-[#BC7D3B]' : 'text-[#163269]'
+              }`}
+          >
+            <FaFileInvoice className="w-6 h-6 flex-shrink-0" />
+            {!isCollapsed && (
+              <span className={`text-lg font-semibold ${!isActive('/admin/cotizaciones') && 'underline'}`}>
+                Cotizaciones
               </span>
             )}
           </Link>

@@ -13,6 +13,7 @@ var estadisticasRouter = require("./routes/estadisticas");
 var usuarioController = require("./controllers/usuario");
 var detallesRouter = require('./routes/detalles');
 var ventaRouter = require("./routes/venta");
+var cotizacionRouter = require("./routes/cotizacion");
 var authMiddleware = require("./middleware/auth");
 var app = express();
 
@@ -59,6 +60,7 @@ app.use("/api/calificaciones", authMiddleware, calificacionRouter);
 app.use("/api/estadisticas", authMiddleware, estadisticasRouter);
 app.use("/api/detalles", authMiddleware, detallesRouter);
 app.use("/api/ventas", authMiddleware, ventaRouter);
+app.use("/api/cotizaciones", authMiddleware, cotizacionRouter);
 
 // Ruta pública para tracking de pedidos (sin autenticación)
 app.use("/cliente/tracking", trackingRouter);

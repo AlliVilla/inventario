@@ -110,10 +110,41 @@ const CotizacionNueva = () => {
         return cart.reduce((acc, item) => acc + item.subtotal, 0);
     };
 
-    const generatePDF = () => {
+    const generatePDF = async () => {
         if (cart.length === 0) {
             message.error("No hay productos en la cotización");
             return;
+        }
+
+        const hide = message.loading("Guardando cotización...", 0);
+
+        try {
+            // Guardar en la base de datos
+            const cotizacionData = {
+                cliente_nombre: clientName || "Cliente General",
+                total: getTotal(),
+                items: cart.map(item => ({
+                    id_articulo: item.id_articulo,
+                    cantidad: item.cantidad,
+                    precio_unitario: item.precio_unitario,
+                    subtotal: item.subtotal
+                })),
+                id_usuario_vendedor: 1 // TODO: Obtener del contexto de usuario autenticado
+            };
+
+            await axios.post(`${import.meta.env.VITE_API_URL}/cotizaciones`, cotizacionData, {
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                }
+            });
+
+            hide();
+            message.success("Cotización guardada y lista para descargar");
+        } catch (error) {
+            hide();
+            console.error("Error al guardar cotización:", error);
+            message.error("Error al guardar la cotización en el servidor");
+            return; // No descargar PDF si falló el guardado
         }
 
         const doc = new jsPDF();
@@ -143,7 +174,6 @@ const CotizacionNueva = () => {
             doc.setFont("helvetica", "bold");
             doc.text("COTIZACIÓN", 170, 55, { align: "right" });
             doc.setFontSize(12);
-            doc.text("N° 000-002-01-0005230", 170, 62, { align: "right" });
 
             doc.setFontSize(11);
             doc.setFont("helvetica", "normal");

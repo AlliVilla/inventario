@@ -22,6 +22,7 @@ import Ventas from "./components/Ventas.jsx";
 import ReportesVentas from "./components/ReportesVentas.jsx";
 import Cotizaciones from "./components/Cotizaciones.jsx";
 import CotizacionNueva from "./components/CotizacionNueva.jsx";
+import TestCostos from "./components/TestCostos.jsx";
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
           <Route path="pedidos/crear-pedido" element={<NuevoPedidoForm />} />
           <Route path="envios" element={<ListEnviosAdmin />} />
           <Route path="perfil" element={<PerfilAdmin />} />
+          <Route path="test-costos" element={<TestCostos />} />
         </Route>
 
         {/* Páginas que llevan sidebar del repartidor - PROTEGIDAS */}

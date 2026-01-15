@@ -30,7 +30,7 @@ const createNewPedido = async (request, response) => {
 
     // Generar código de confirmación automáticamente
     const codigo = generarCodigo();
-    
+
     // Agregar código de confirmación al body del pedido
     const pedidoData = {
       ...request.body,
@@ -38,10 +38,10 @@ const createNewPedido = async (request, response) => {
     };
 
     const newPedido = await Pedido.create(pedidoData);
-    
+
     // Generar enlace de tracking
     const trackingLink = generarEnlaceTracking(newPedido.id_pedido);
-    
+
     // Actualizar el pedido con el enlace de tracking
     await newPedido.update({ link_seguimiento: trackingLink });
 
@@ -61,14 +61,44 @@ const createNewPedido = async (request, response) => {
 
 const getAllPedidos = async (request, response) => {
   try {
-    const pedidos = await Pedido.findAll();
+    console.log('=== INICIANDO getAllPedidos ===');
+
+    const pedidos = await Pedido.findAll({
+      include: [
+        {
+          model: Detalle_Pedido,
+          include: [{
+            model: Articulo,
+            attributes: ['id_articulo', 'nombre', 'descripcion', 'precio', 'costo_unitario']
+          }]
+        }
+      ],
+      order: [['fecha_creacion', 'DESC']]
+    });
+
+    console.log('Pedidos cargados:', pedidos.length);
+
+    if (pedidos.length > 0) {
+      const firstPedido = pedidos[0].toJSON();
+      console.log('Primer pedido (keys):', Object.keys(firstPedido));
+      console.log('Tiene Detalle_Pedidos?', !!firstPedido.Detalle_Pedidos);
+      console.log('Tiene Detalle_Pedido?', !!firstPedido.Detalle_Pedido);
+
+      // Log all possible keys that start with "Detalle"
+      Object.keys(firstPedido).forEach(key => {
+        if (key.toLowerCase().includes('detalle')) {
+          console.log(`Encontrada clave: ${key}`, firstPedido[key]);
+        }
+      });
+    }
 
     return response.status(200).json({
       status: "success",
       data: pedidos,
     });
   } catch (error) {
-    console.error("Error en getAllPedidos:", error);
+    console.error("❌ Error en getAllPedidos:", error);
+    console.error("Stack:", error.stack);
     return response.status(500).json({
       status: "error",
       message: "Internal server error",
@@ -141,7 +171,7 @@ const asignarRepartidor = async (request, response) => {
     await pedido.update({ id_repartidor_asignado: id_repartidor });
     await pedido.update({ estado: "Asignado" });
     await pedido.update({ fecha_asignacion: new Date() });
-    
+
     return response.status(200).json({
       status: "success",
       message: "Repartidor asignado correctamente",
@@ -249,7 +279,7 @@ const getPedidosActivosByRepartidor = async (request, response) => {
   const { id_repartidor } = request.params;
   try {
     const pedidos = await Pedido.findAll({
-      where: { 
+      where: {
         id_repartidor_asignado: id_repartidor,
         estado: ['Asignado', 'En transcurso']
       }
@@ -387,7 +417,7 @@ const cancelarEnvio = async (request, response) => {
 const updateEstadoPedido = async (request, response) => {
   const { id } = request.params;
   const { estado } = request.body;
-  
+
   try {
     if (estado === "Cancelado") {
       const transaction = await sequelize.transaction();
@@ -415,7 +445,7 @@ const updateEstadoPedido = async (request, response) => {
     }
 
     const pedido = await Pedido.findByPk(id);
-    
+
     if (!pedido) {
       return response.status(404).json({
         status: "Not Found",

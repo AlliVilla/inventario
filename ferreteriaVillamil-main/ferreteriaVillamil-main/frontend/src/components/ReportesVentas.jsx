@@ -29,40 +29,52 @@ const ReportesVentas = () => {
             const articlesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list`);
             const articlesMap = new Map();
             if (articlesRes.data && articlesRes.data.data) {
-                articlesRes.data.data.forEach(a => articlesMap.set(a.id_articulo, a));
+                // Use String keys for the Map to avoid type-mismatch (number vs string)
+                articlesRes.data.data.forEach(a => articlesMap.set(String(a.id_articulo), a));
             }
             setArticulos(articlesMap);
 
             // Fetch sales (Ventas)
             const ventasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/list`);
-            if (ventasRes.data) {
-                setVentas(ventasRes.data);
+            const ventasData = (ventasRes.data || []).map(v => ({
+                ...v,
+                tipo_transaccion: 'Venta',
+                id_unico: `V-${v.id_venta}`,
+                fecha_normalizada: v.fecha_venta,
+                detalles_normalizados: v.Detalle_Venta || v.Detalle_Ventas || v.detalles || []
+            }));
 
-                const startRange = moment().startOf('day');
-                const endRange = moment().endOf('day');
+            // Fetch orders (Pedidos)
+            const pedidosRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/getAllPedidos`);
+            const pedidosData = (pedidosRes.data?.data || []).map(p => ({
+                ...p,
+                tipo_transaccion: 'Pedido',
+                id_unico: `P-${p.id_pedido}`,
+                fecha_normalizada: p.fecha_creacion,
+                detalles_normalizados: p.Detalle_Pedidos || p.Detalle_Pedido || p.detalles || [],
+                es_pedido: true
+            }));
 
-                console.log("Servidor:", ventasRes.data.length, "registros totales");
+            const combinedData = [...ventasData, ...pedidosData].sort((a, b) =>
+                moment(b.fecha_normalizada).valueOf() - moment(a.fecha_normalizada).valueOf()
+            );
 
-                const filtered = ventasRes.data.filter(venta => {
-                    if (!venta.fecha_venta) return false;
-                    const vDate = moment(venta.fecha_venta);
+            setVentas(combinedData);
 
-                    // Debug específico para el 5 de enero si no encuentra nada
-                    if (vDate.date() === 5 && vDate.month() === 0) {
-                        console.log(`Venta Jan 5 (ID: ${venta.id_venta}): ${vDate.format()}`);
-                    }
+            const startRange = dateRange[0].startOf('day');
+            const endRange = dateRange[1].endOf('day');
 
-                    return vDate.isBetween(startRange, endRange, null, '[]');
-                });
+            const filtered = combinedData.filter(item => {
+                if (!item.fecha_normalizada) return false;
+                const vDate = moment(item.fecha_normalizada);
+                return vDate.isBetween(startRange, endRange, null, '[]');
+            });
 
-                console.log("Coincidencias iniciales (Hoy):", filtered.length);
+            setFilteredVentas(filtered);
+            calculateStats(filtered, articlesMap);
 
-                setFilteredVentas(filtered);
-                calculateStats(filtered, articlesMap);
-
-                if (filtered.length === 0 && ventasRes.data.length > 0) {
-                    message.info("No hay ventas registradas hoy.");
-                }
+            if (filtered.length === 0 && combinedData.length > 0) {
+                message.info("No hay transacciones registradas en el rango seleccionado.");
             }
         } catch (error) {
             console.error("Error loading report data:", error);
@@ -70,40 +82,45 @@ const ReportesVentas = () => {
         }
     };
 
-    const calculateStats = (ventasData, articlesMap) => {
-        let total = 0;
-        let costo = 0;
+    const calculateStats = (data, articlesMap) => {
+        let totalIngresos = 0;
+        let costoMercancia = 0;
+        let totalEnvios = 0;
 
-        ventasData.forEach(venta => {
-            if (venta.estado === 'Cancelada') return; // Ignorar ventas canceladas en los totales
+        data.forEach(item => {
+            if (item.estado === 'Cancelada' || item.estado === 'Cancelado') return;
 
-            const totalVenta = parseFloat(venta.total) || 0;
-            total += totalVenta;
+            const totalItem = parseFloat(item.total) || 0;
+            const envioItem = parseFloat(item.costo_envio || item.envio || 0);
 
-            // Verificar si Detalle_Ventas existe y es un array
-            if (venta.Detalle_Venta && Array.isArray(venta.Detalle_Venta)) {
-                venta.Detalle_Venta.forEach(detalle => {
-                    // El articulo puede venir anidado si el backend lo incluye
-                    // O lo buscamos en el mapa si solo viene el ID
+            totalIngresos += totalItem;
+            totalEnvios += envioItem;
+
+            const detalles = item.detalles_normalizados || [];
+            if (Array.isArray(detalles)) {
+                detalles.forEach(detalle => {
                     let costoUnitario = 0;
+                    const artData = detalle.Articulo || detalle.articulo;
 
-                    if (detalle.Articulo) {
-                        costoUnitario = parseFloat(detalle.Articulo.costo_unitario) || 0;
+                    if (artData && (artData.costo_unitario !== undefined && artData.costo_unitario !== null)) {
+                        costoUnitario = parseFloat(artData.costo_unitario) || 0;
                     } else {
-                        const articulo = articlesMap.get(detalle.id_articulo);
-                        costoUnitario = articulo ? (parseFloat(articulo.costo_unitario) || 0) : 0;
+                        const idArt = detalle.id_articulo || detalle.idArticulo;
+                        const articuloFromMap = idArt ? articlesMap.get(String(idArt)) : null;
+                        costoUnitario = articuloFromMap ? (parseFloat(articuloFromMap.costo_unitario) || 0) : 0;
                     }
 
-                    costo += detalle.cantidad * costoUnitario;
+                    const cantidad = parseFloat(detalle.cantidad) || 0;
+                    costoMercancia += (cantidad * costoUnitario);
                 });
             }
         });
 
         setStats({
-            totalVentas: total,
-            costoTotal: costo,
-            utilidadTotal: total - costo,
-            cantidadVentas: ventasData.filter(v => v.estado !== 'Cancelada').length
+            totalVentas: totalIngresos,
+            costoTotal: costoMercancia,
+            utilidadTotal: (totalIngresos - totalEnvios) - costoMercancia,
+            cantidadVentas: data.filter(v => v.estado !== 'Cancelada' && v.estado !== 'Cancelado').length
         });
     };
 
@@ -131,11 +148,11 @@ const ReportesVentas = () => {
 
         console.log("Rango Filtro:", start.format(), "a", end.format());
 
-        const filtered = ventas.filter(venta => {
-            if (!venta.fecha_venta) return false;
+        const filtered = ventas.filter(item => {
+            if (!item.fecha_normalizada) return false;
 
             // Forzamos la interpretación de la fecha de la base de datos
-            const vDate = moment(venta.fecha_venta);
+            const vDate = moment(item.fecha_normalizada);
 
             // Comparamos usando isBetween con '[]' para que sea inclusivo [inicio, fin]
             const isMatch = vDate.isBetween(start, end, null, '[]');
@@ -150,15 +167,22 @@ const ReportesVentas = () => {
 
     const columns = [
         {
-            title: <span className="font-bold text-[#163269]">ID Venta</span>,
-            dataIndex: 'id_venta',
-            key: 'id_venta',
-            render: (id) => <span className="font-bold text-gray-700">#{id}</span>
+            title: <span className="font-bold text-[#163269]">ID</span>,
+            dataIndex: 'id_unico',
+            key: 'id_unico',
+            render: (id, record) => (
+                <div className="flex flex-col">
+                    <span className="font-bold text-gray-700">#{record.id_venta || record.id_pedido}</span>
+                    <Tag color={record.tipo_transaccion === 'Venta' ? 'blue' : 'purple'} className="w-fit text-[10px] px-1 py-0 leading-tight">
+                        {record.tipo_transaccion.toUpperCase()}
+                    </Tag>
+                </div>
+            )
         },
         {
             title: <span className="font-bold text-[#163269]">Fecha</span>,
-            dataIndex: 'fecha_venta',
-            key: 'fecha_venta',
+            dataIndex: 'fecha_normalizada',
+            key: 'fecha_normalizada',
             render: (date) => <span className="text-gray-600">{moment(date).format('DD MMM YYYY, h:mm a')}</span>
         },
         {
@@ -172,31 +196,48 @@ const ReportesVentas = () => {
             dataIndex: 'total',
             key: 'total',
             align: 'right',
-            render: (val) => <span className="font-bold text-[#163269] text-base">L. {parseFloat(val).toFixed(2)}</span>
+            render: (val, record) => {
+                const total = parseFloat(val) || 0;
+                const envio = parseFloat(record.costo_envio) || 0;
+                const sub = total - envio;
+                return (
+                    <div className="flex flex-col items-end">
+                        <span className="font-bold text-[#163269] text-base">L. {total.toFixed(2)}</span>
+                        {envio > 0 && <span className="text-[10px] text-gray-400">Incluye L. {envio.toFixed(2)} envío</span>}
+                    </div>
+                );
+            }
         },
         {
             title: <span className="font-bold text-[#163269]">Utilidad (Est.)</span>,
             key: 'utilidad',
             align: 'right',
             render: (_, record) => {
-                let costoVenta = 0;
-                const detalles = record.Detalle_Venta || record.Detalle_Ventas || [];
+                let costoVentaTotal = 0;
+                const detalles = record.detalles_normalizados || [];
 
-                if (detalles.length > 0) {
-                    detalles.forEach(d => {
-                        let costoU = 0;
-                        if (d.Articulo) {
-                            costoU = parseFloat(d.Articulo.costo_unitario) || 0;
-                        } else {
-                            const art = articulos.get(d.id_articulo);
-                            costoU = art ? (parseFloat(art.costo_unitario) || 0) : 0;
-                        }
-                        costoVenta += d.cantidad * costoU;
-                    });
-                }
-                const utilidad = (parseFloat(record.total) || 0) - costoVenta;
+                detalles.forEach(d => {
+                    let costoU = 0;
+                    const artData = d.Articulo || d.articulo;
+
+                    if (artData && (artData.costo_unitario !== undefined && artData.costo_unitario !== null)) {
+                        costoU = parseFloat(artData.costo_unitario) || 0;
+                    } else {
+                        const idArt = d.id_articulo || d.idArticulo;
+                        const articuloFromMap = idArt ? articulos.get(String(idArt)) : null;
+                        costoU = articuloFromMap ? (parseFloat(articuloFromMap.costo_unitario) || 0) : 0;
+                    }
+
+                    const cant = parseFloat(d.cantidad) || 0;
+                    costoVentaTotal += (cant * costoU);
+                });
+
+                const total = parseFloat(record.total) || 0;
+                const envio = parseFloat(record.costo_envio || record.envio || 0);
+                const utilidad = (total - envio) - costoVentaTotal;
+
                 return (
-                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${record.estado === 'Cancelada' ? 'bg-gray-100 text-gray-400' : (utilidad >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}`}>
+                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${(record.estado === 'Cancelada' || record.estado === 'Cancelado') ? 'bg-gray-100 text-gray-400' : (utilidad >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}`}>
                         L. {utilidad.toFixed(2)}
                     </div>
                 );
@@ -207,8 +248,8 @@ const ReportesVentas = () => {
             dataIndex: 'estado',
             key: 'estado',
             render: (estado) => (
-                <Tag color={estado === 'Cancelada' ? 'red' : 'green'} className="font-medium">
-                    {estado === 'Cancelada' ? 'CANCELADA' : 'COMPLETADA'}
+                <Tag color={(estado === 'Cancelada' || estado === 'Cancelado') ? 'red' : (estado === 'Entregado' || estado === 'Completada' ? 'green' : 'orange')} className="font-medium">
+                    {(estado || 'COMPLETADA').toUpperCase()}
                 </Tag>
             )
         },
@@ -217,7 +258,7 @@ const ReportesVentas = () => {
             key: 'acciones',
             align: 'center',
             render: (_, record) => (
-                record.estado !== 'Cancelada' && (
+                record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
                     <Popconfirm
                         title="¿Estás seguro de cancelar esta venta?"
                         description="Esta acción repondrá el stock de los productos."
@@ -340,7 +381,7 @@ const ReportesVentas = () => {
                 <Table
                     dataSource={filteredVentas}
                     columns={columns}
-                    rowKey="id_venta"
+                    rowKey="id_unico"
                     pagination={{
                         pageSize: 8,
                         showSizeChanger: false,
@@ -356,8 +397,8 @@ const ReportesVentas = () => {
                             <div className="bg-gray-50 p-4 rounded-lg mx-4 my-2 border border-gray-200">
                                 <h4 className="text-sm font-bold text-gray-600 mb-3 uppercase tracking-wider">Detalles de la compra</h4>
                                 <Table
-                                    dataSource={record.Detalle_Venta || []}
-                                    rowKey="id_detalle_venta"
+                                    dataSource={record.detalles_normalizados || []}
+                                    rowKey={(r) => r.id_detalle_venta || r.id_detalle || Math.random()}
                                     pagination={false}
                                     size="small"
                                     bordered={false}
@@ -366,7 +407,8 @@ const ReportesVentas = () => {
                                             title: 'Producto',
                                             key: 'prod',
                                             render: (_, r) => {
-                                                const nombre = r.Articulo ? r.Articulo.nombre : (articulos.get(r.id_articulo)?.nombre || 'Desconocido');
+                                                const artData = r.Articulo || r.articulo;
+                                                const nombre = artData ? artData.nombre : (articulos.get(String(r.id_articulo || r.idArticulo))?.nombre || 'Desconocido');
                                                 return <span className="font-medium text-gray-700">{nombre}</span>
                                             }
                                         },

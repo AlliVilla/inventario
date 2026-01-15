@@ -285,6 +285,7 @@ const CotizacionNueva = () => {
         doc.text("La Cotización es un compromiso de precio por 15 días", 190, pageHeight - 20, { align: "right" });
 
         doc.save(`Cotizacion_${clientName || 'Cliente'}_${date.replace(/\//g, '-')}.pdf`);
+        navigate('/admin/cotizaciones');
     };
 
     const columns = [
@@ -400,7 +401,7 @@ const CotizacionNueva = () => {
                             />
                         }
                         style={{ height: 'calc(100vh - 200px)', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}
-                        bodyStyle={{ flex: 1, overflowY: 'auto', padding: '16px' }}
+                        styles={{ body: { flex: 1, overflowY: 'auto', padding: '16px' } }}
                     >
                         <List
                             itemLayout="horizontal"
@@ -431,7 +432,7 @@ const CotizacionNueva = () => {
                 <Col span={14}>
                     <Card
                         style={{ height: 'calc(100vh - 160px)', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}
-                        bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflow: 'hidden' }}
+                        styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflow: 'hidden' } }}
                     >
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ marginBottom: '8px', fontWeight: '500' }}>Nombre del Cliente:</div>
@@ -469,7 +470,7 @@ const CotizacionNueva = () => {
                                 </Col>
                             </Row>
 
-                            <Space style={{ width: '100%', justifyContent: 'stretch' }} size="middle">
+                            <Space style={{ width: '100%', justifyContent: 'stretch' }} size="middle" orientation="horizontal">
                                 <Button
                                     size="large"
                                     onClick={() => {

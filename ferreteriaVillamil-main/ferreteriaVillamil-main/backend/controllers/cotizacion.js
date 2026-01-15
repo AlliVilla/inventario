@@ -53,3 +53,20 @@ exports.getCotizaciones = async (req, res) => {
         res.status(500).json({ message: 'Error al obtener las cotizaciones' });
     }
 };
+
+exports.deleteCotizacion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const cotizacion = await Cotizacion.findByPk(id);
+
+        if (!cotizacion) {
+            return res.status(404).json({ message: 'Cotización no encontrada' });
+        }
+
+        await cotizacion.destroy();
+        res.json({ message: 'Cotización eliminada con éxito' });
+    } catch (error) {
+        console.error('Error al eliminar cotización:', error);
+        res.status(500).json({ message: 'Error al eliminar la cotización' });
+    }
+};

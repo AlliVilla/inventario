@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Divider, Modal, Space } from 'antd';
+import { Input, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Divider, Modal, Space, Empty } from 'antd';
 import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, PrinterOutlined, FilePdfOutlined, UserOutlined, ClearOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -369,7 +369,7 @@ const CotizacionNueva = () => {
     ];
 
     const getImageUrl = (url) => {
-        if (!url) return null;
+        if (!url || url === 'null' || url === 'undefined') return undefined; // undefined evita que Avatar intente cargar "/null"
         if (url.startsWith('http')) return url;
         const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
         return `${baseUrl}/${url.startsWith('/') ? url.slice(1) : url}`;
@@ -403,28 +403,54 @@ const CotizacionNueva = () => {
                         style={{ height: 'calc(100vh - 200px)', borderRadius: '16px', display: 'flex', flexDirection: 'column' }}
                         styles={{ body: { flex: 1, overflowY: 'auto', padding: '16px' } }}
                     >
-                        <List
-                            itemLayout="horizontal"
-                            dataSource={filteredArticulos}
-                            renderItem={item => (
-                                <List.Item
-                                    style={{ padding: '12px', cursor: 'pointer', borderRadius: '8px', transition: 'all 0.3s' }}
-                                    className="hover:bg-blue-50"
-                                    onClick={() => addToCart(item)}
-                                >
-                                    <List.Item.Meta
-                                        avatar={<Avatar src={getImageUrl(item.foto_url)} shape="square" size={48} />}
-                                        title={<span style={{ fontWeight: '600' }}>{item.nombre}</span>}
-                                        description={
-                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                <span style={{ color: '#163269', fontWeight: 'bold' }}>L. {item.precio}</span>
-                                                <span style={{ fontSize: '0.8rem' }}>Stock: {item.cantidad_existencia}</span>
+                        <div style={{ padding: '4px' }}>
+                            {filteredArticulos.length > 0 ? (
+                                filteredArticulos.map(item => (
+                                    <div
+                                        key={item.id_articulo}
+                                        style={{
+                                            padding: '12px',
+                                            cursor: 'pointer',
+                                            borderRadius: '12px',
+                                            transition: 'all 0.2s',
+                                            marginBottom: '8px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '16px',
+                                            border: '1px solid transparent',
+                                            background: '#fff'
+                                        }}
+                                        className="hover-product-item"
+                                        onClick={() => addToCart(item)}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#f0f7ff';
+                                            e.currentTarget.style.borderColor = '#bae7ff';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = '#fff';
+                                            e.currentTarget.style.borderColor = 'transparent';
+                                        }}
+                                    >
+                                        <Avatar
+                                            src={getImageUrl(item.foto_url)}
+                                            shape="square"
+                                            size={54}
+                                            style={{ backgroundColor: '#f0f2f5', color: '#163269', borderRadius: '8px' }}
+                                            icon={<ShoppingCartOutlined />}
+                                        />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: '600', fontSize: '1rem', color: '#1f2937' }}>{item.nombre}</div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                                                <Text strong style={{ color: '#163269' }}>L. {item.precio}</Text>
+                                                <Text type="secondary" style={{ fontSize: '0.8rem' }}>Stock: {item.cantidad_existencia}</Text>
                                             </div>
-                                        }
-                                    />
-                                </List.Item>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <Empty description="No se encontraron productos" style={{ marginTop: '40px' }} />
                             )}
-                        />
+                        </div>
                     </Card>
                 </Col>
 

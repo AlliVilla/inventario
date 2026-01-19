@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Avatar, message, Modal, Input, Button, Table, Card, Row, Col, Typography, InputNumber, Divider, Space, List, Tag, Empty } from 'antd';
 import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, UserOutlined, PhoneOutlined, IdcardOutlined, EnvironmentOutlined, MessageOutlined, PlusOutlined, ArrowLeftOutlined, ExpandOutlined } from '@ant-design/icons';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -10,6 +10,8 @@ function NuevoPedidoForm() {
     const usuario = JSON.parse(sessionStorage.getItem('usuario'));
     const id_admin_creador = usuario?.id_usuario;
     const navigate = useNavigate();
+    const { id } = useParams(); // Get ID from URL if editing
+    const isEditing = !!id;
     const [form, setForm] = useState({
         numero_pedido: "",
         cliente_nombre: "",
@@ -31,11 +33,13 @@ function NuevoPedidoForm() {
     const [detalles, setDetalles] = useState([]);
     const [isCartModalVisible, setIsCartModalVisible] = useState(false);
 
-    const fetchArticulos = async () => {
+    const fetchArticulos = async (searchQuery = '') => {
         try {
+            const params = searchQuery ? { search: searchQuery, limit: 100 } : { limit: 50 };
             const response = await axios.get(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list/active`,
                 {
+                    params,
                     headers: {
                         'Authorization': `Bearer ${sessionStorage.getItem('token')}`
                     }
@@ -51,21 +55,68 @@ function NuevoPedidoForm() {
 
     const handleSearch = (value) => {
         setSearchTerm(value);
-        if (!value) {
-            setFilteredArticulos(articulos);
-            return;
-        }
-        const lower = value.toLowerCase();
-        const filtered = articulos.filter(a =>
-            a.nombre.toLowerCase().includes(lower) ||
-            a.codigo.toLowerCase().includes(lower)
-        );
-        setFilteredArticulos(filtered);
+        // Debounce server-side search
+        if (window.searchTimeout) clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(() => {
+            fetchArticulos(value);
+        }, 300); // Wait 300ms after user stops typing
     };
 
     useEffect(() => {
         fetchArticulos();
-    }, []);
+
+        if (isEditing) {
+            fetchPedidoData();
+        }
+    }, [id]);
+
+    const fetchPedidoData = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get(
+                `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${id}/detalles`,
+                {
+                    headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+                }
+            );
+
+            if (response.data.status === 'success') {
+                const p = response.data.data;
+                // Populate form
+                setForm({
+                    numero_pedido: p.numero_pedido,
+                    cliente_nombre: p.cliente_nombre,
+                    cliente_telefono: p.cliente_telefono,
+                    cliente_identidad: p.cliente_identidad,
+                    id_admin_creador: p.id_admin_creador,
+                    estado: p.estado,
+                    costo_envio: Number(p.costo_envio),
+                    total: Number(p.total) - Number(p.costo_envio), // We track product total separately in state
+                    direccion_entrega: p.direccion_entrega,
+                    observacion: p.observacion
+                });
+
+                // Populate detalles
+                const loadedDetalles = p.Detalle_Pedidos.map(d => ({
+                    id_articulo: d.Articulo.id_articulo,
+                    nombre: d.Articulo.nombre,
+                    precio_unitario: Number(d.precio_unitario),
+                    cantidad: Number(d.cantidad),
+                    subtotal: Number(d.subtotal)
+                }));
+                setDetalles(loadedDetalles);
+
+                // Recalculate pure product total just to be safe
+                const prodTotal = loadedDetalles.reduce((acc, curr) => acc + curr.subtotal, 0);
+                setForm(prev => ({ ...prev, total: prodTotal }));
+            }
+        } catch (error) {
+            console.error(error);
+            message.error("Error al cargar datos del pedido para editar");
+        } finally {
+            setLoading(false);
+        }
+    }
 
     const handleChange = (event) => {
         setForm({ ...form, [event.target.name]: event.target.value })
@@ -94,51 +145,64 @@ function NuevoPedidoForm() {
                 }
             };
 
-            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/newPedido`, { ...form, numero_pedido: "PED" }, config);
+            if (isEditing) {
+                // UPDATE LOGIC
+                // 1. Update Header
+                await axios.put(
+                    `${import.meta.env.VITE_API_URL || '/api'}/pedidos/updatePedido/${id}`,
+                    form,
+                    config
+                );
 
-            const id_pedido = response.data.data.id_pedido;
-            const idFormat = String(id_pedido).padStart(3, '0');
-            const numeroPedidoNew = `PED${idFormat}`;
+                // 2. Replace Details
+                const detallesToSend = detalles.map(({ nombre, ...det }) => ({
+                    ...det,
+                    id_pedido: id
+                }));
 
-            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/updatePedido/${id_pedido}`, { numero_pedido: numeroPedidoNew }, config);
+                await axios.put(
+                    `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${id}/detalles`,
+                    detallesToSend,
+                    config
+                );
 
-            message.success('Pedido creado exitosamente');
-            setForm({
-                numero_pedido: "",
-                cliente_nombre: "",
-                cliente_telefono: "",
-                cliente_identidad: "",
-                id_admin_creador: id_admin_creador,
-                estado: 'Pendiente',
-                costo_envio: 0.0,
-                total: 0.0,
-                direccion_entrega: "",
-                observacion: "",
-            });
+                message.success('Pedido actualizado exitosamente');
+                navigate('/admin/pedidos');
 
-            const detallesConPedido = detalles.map(({ nombre, ...det }) => ({
-                ...det,
-                id_pedido
-            }));
+            } else {
+                // CREATE LOGIC
+                const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/newPedido`, { ...form, numero_pedido: "PED" }, config);
 
-            console.log(detallesConPedido)
+                const id_pedido = response.data.data.id_pedido;
+                const idFormat = String(id_pedido).padStart(3, '0');
+                const numeroPedidoNew = `PED${idFormat}`;
 
-            await Promise.all(
-                detallesConPedido.map(detalle =>
-                    axios.post(
-                        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/detalles/new`,
-                        detalle,
-                        {
-                            headers: {
-                                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/updatePedido/${id_pedido}`, { numero_pedido: numeroPedidoNew }, config);
+
+                const detallesConPedido = detalles.map(({ nombre, ...det }) => ({
+                    ...det,
+                    id_pedido
+                }));
+
+                await Promise.all(
+                    detallesConPedido.map(detalle =>
+                        axios.post(
+                            `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/detalles/new`,
+                            detalle,
+                            {
+                                headers: {
+                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                                }
                             }
-                        }
+                        )
                     )
-                )
-            );
-            navigate('/admin/pedidos');
+                );
+                message.success('Pedido creado exitosamente');
+                navigate('/admin/pedidos');
+            }
+
         } catch (err) {
-            message.error(`Error al crear pedido`);
+            message.error(`Error al ${isEditing ? 'actualizar' : 'crear'} pedido`);
             console.log(err)
         } finally {
             setLoading(false);
@@ -301,8 +365,12 @@ function NuevoPedidoForm() {
                         style={{ border: 'none', background: '#f5f5f5' }}
                     />
                     <div>
-                        <Title level={3} style={{ color: '#163269', margin: 0 }}>Nuevo Pedido</Title>
-                        <Text type="secondary">Selecciona productos y completa los datos del cliente</Text>
+                        <Title level={3} style={{ color: '#163269', margin: 0 }}>
+                            {isEditing ? 'Editar Pedido' : 'Nuevo Pedido'}
+                        </Title>
+                        <Text type="secondary">
+                            {isEditing ? 'Modifica los datos del pedido y productos' : 'Selecciona productos y completa los datos del cliente'}
+                        </Text>
                     </div>
                 </div>
 
@@ -627,7 +695,7 @@ function NuevoPedidoForm() {
                                     loading={loading}
                                     disabled={detalles.length === 0}
                                 >
-                                    GUARDAR PEDIDO
+                                    {isEditing ? 'ACTUALIZAR PEDIDO' : 'GUARDAR PEDIDO'}
                                 </Button>
                             </div>
                         </Card>

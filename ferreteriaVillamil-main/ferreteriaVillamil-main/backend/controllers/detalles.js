@@ -1,6 +1,6 @@
 const { Detalle_Pedido, Articulo, sequelize } = require('../models');
 
-function checkForNull(data, res){
+function checkForNull(data, res) {
     if (!data || Object.keys(data).length === 0) {
         res.status(400).json({
             status: "Error",
@@ -8,7 +8,7 @@ function checkForNull(data, res){
         });
         return false;
     };
-        if (!data.id_pedido) {
+    if (!data.id_pedido) {
         res.status(422).json({
             status: "Error",
             message: "Field 'id_pedido' is required"
@@ -72,10 +72,11 @@ const nuevoDetalle = async (request, response) => {
             });
         }
 
-        await articulo.update(
-            { cantidad_existencia: existenciaActual - cantidadSolicitada },
-            { transaction }
-        );
+        // REMOVIDO: Ya no se descuenta inventario al crear el pedido (se hace al entregar)
+        // await articulo.update(
+        //     { cantidad_existencia: existenciaActual - cantidadSolicitada },
+        //     { transaction }
+        // );
 
         const newDetalle = await Detalle_Pedido.create(data, { transaction });
 
@@ -88,9 +89,9 @@ const nuevoDetalle = async (request, response) => {
     } catch (error) {
         await transaction.rollback();
         return response.status(500).json({
-                status: "Error",
-                message: error.message
-            });
+            status: "Error",
+            message: error.message
+        });
     }
 }
 
@@ -122,6 +123,57 @@ const getDetallesByIDPedido = async (request, response) => {
     }
 }
 
+const deleteDetalle = async (request, response) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const { id } = request.params;
+        const detalle = await Detalle_Pedido.findByPk(id, { transaction });
+
+        if (!detalle) {
+            await transaction.rollback();
+            return response.status(404).json({
+                status: "Not Found",
+                message: "Detalle no encontrado"
+            });
+        }
+
+        const pedido = await sequelize.models.Pedido.findByPk(detalle.id_pedido, { transaction });
+
+        // Si el pedido ya fue entregado, devolvemos el stock
+        if (pedido.estado === 'Entregado') {
+            const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
+            if (articulo) {
+                await articulo.update({
+                    cantidad_existencia: articulo.cantidad_existencia + detalle.cantidad
+                }, { transaction });
+            }
+        }
+
+        const subtotalRestar = detalle.subtotal;
+
+        // Eliminar detalle
+        await detalle.destroy({ transaction });
+
+        // Actualizar total del pedido
+        const nuevoTotal = Number(pedido.total) - Number(subtotalRestar);
+        await pedido.update({ total: nuevoTotal }, { transaction });
+
+        await transaction.commit();
+
+        return response.status(200).json({
+            status: "Success",
+            message: "Detalle eliminado correctamente"
+        });
+
+    } catch (error) {
+        await transaction.rollback();
+        return response.status(500).json({
+            status: "Error",
+            message: error.message
+        });
+    }
+}
+
 const getDetalles = async (request, response) => {
     try {
         const detalles = await Detalle_Pedido.findAll();
@@ -143,5 +195,6 @@ const getDetalles = async (request, response) => {
 module.exports = {
     nuevoDetalle,
     getDetallesByIDPedido,
-    getDetalles
+    getDetalles,
+    deleteDetalle
 };

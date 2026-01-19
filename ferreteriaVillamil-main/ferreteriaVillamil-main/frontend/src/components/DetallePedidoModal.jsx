@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { message, Modal } from 'antd';
 
 const DetallePedidoModal = ({ pedidoId, onClose }) => {
   const [pedido, setPedido] = useState(null);
@@ -13,7 +14,7 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${pedidoId}/detalles`
         );
-        
+
         if (response.data.status === 'success') {
           setPedido(response.data.data);
         } else {
@@ -31,6 +32,44 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
       fetchPedidoDetalles();
     }
   }, [pedidoId]);
+
+  const handleDeleteDetalle = async (idDetalle, nombre) => {
+    const estado = pedido.estado;
+    const esDevolucion = estado === 'Entregado';
+    const accion = esDevolucion ? 'Devolver' : 'Cancelar';
+
+    Modal.confirm({
+      title: `¿${accion} producto?`,
+      content: `¿Estás seguro de que deseas ${accion.toLowerCase()} "${nombre}" del pedido? ${esDevolucion ? 'El inventario será restaurado.' : ''}`,
+      okText: "Sí, proceder",
+      okType: "danger",
+      cancelText: "No",
+      onOk: async () => {
+        try {
+          const response = await axios.delete(
+            `${import.meta.env.VITE_API_URL || '/api'}/detalles/${idDetalle}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+              }
+            }
+          );
+
+          if (response.data.status === 'Success') {
+            message.success('Producto eliminado/devuelto correctamente');
+            // Recargar detalles
+            const res = await axios.get(
+              `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${pedidoId}/detalles`
+            );
+            setPedido(res.data.data);
+          }
+        } catch (error) {
+          console.error("Error al eliminar detalle:", error);
+          message.error("Error al procesar la solicitud");
+        }
+      }
+    });
+  };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'No disponible';
@@ -111,24 +150,23 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
             <p><span className="font-medium">Fecha de Creación:</span> {formatDate(pedido.fecha_creacion)}</p>
             <p><span className="font-medium">Fecha de Asignación:</span> {formatDate(pedido.fecha_asignacion)}</p>
             <p><span className="font-medium">Fecha de Entrega:</span> {formatDate(pedido.fecha_entrega)}</p>
-            <p><span className="font-medium">Estado:</span> 
-              <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
-                pedido.estado === 'Entregado' ? 'bg-green-100 text-green-800' :
-                pedido.estado === 'En transcurso' ? 'bg-blue-100 text-blue-800' :
-                pedido.estado === 'Asignado' ? 'bg-yellow-100 text-yellow-800' :
-                pedido.estado === 'Pendiente' ? 'bg-gray-100 text-gray-800' :
-                pedido.estado === 'Cancelado' ? 'bg-red-100 text-red-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
+            <p><span className="font-medium">Estado:</span>
+              <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${pedido.estado === 'Entregado' ? 'bg-green-100 text-green-800' :
+                  pedido.estado === 'En transcurso' ? 'bg-blue-100 text-blue-800' :
+                    pedido.estado === 'Asignado' ? 'bg-yellow-100 text-yellow-800' :
+                      pedido.estado === 'Pendiente' ? 'bg-gray-100 text-gray-800' :
+                        pedido.estado === 'Cancelado' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                }`}>
                 {pedido.estado}
               </span>
             </p>
-            <p><span className="font-medium">Enlace de Seguimiento:</span> 
+            <p><span className="font-medium">Enlace de Seguimiento:</span>
               {pedido.numero_pedido ? (
-                <a 
+                <a
                   href={`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
-                  target="_blank" 
-                  rel="noopener noreferrer" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-blue-600 hover:underline ml-2"
                 >
                   {`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
@@ -160,6 +198,16 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
                     <div className="text-right">
                       <p className="font-medium">{formatCurrency(detalle.precio_unitario)}</p>
                       <p className="text-sm text-gray-600">{formatCurrency(detalle.subtotal)}</p>
+
+                      {/* Botón para cancelar/devolver ítem individual */}
+                      {(pedido.estado !== 'Cancelado') && (
+                        <button
+                          onClick={() => handleDeleteDetalle(detalle.id_detalle, detalle.Articulo?.nombre)}
+                          className="text-red-500 hover:text-red-700 text-xs font-semibold ml-2 underline"
+                        >
+                          {pedido.estado === 'Entregado' ? 'Devolver' : 'Cancelar'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

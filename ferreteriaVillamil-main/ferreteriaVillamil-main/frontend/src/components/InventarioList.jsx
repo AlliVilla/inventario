@@ -19,10 +19,10 @@ function InventarioList() {
     const navigate = useNavigate();
     const baseUrl = import.meta.env.VITE_API_URL;
 
-    const fetchArticulos = async () => {
+    const fetchArticulos = async (searchQuery = '') => {
         try {
-            const response = await axios.get(`${baseUrl}/articulos/list`);
-
+            const params = searchQuery ? { search: searchQuery, limit: 200 } : { limit: 200 };
+            const response = await axios.get(`${baseUrl}/articulos/list`, { params });
             setArticulos(response.data.data);
         } catch (err) {
             const errorMsg = err.response?.data?.message || 'Error al cargar articulos';
@@ -35,15 +35,7 @@ function InventarioList() {
 
         let filtered = [...articulos];
 
-        // 1. Filtrar por búsqueda
-        if (searchText) {
-            const lower = searchText.toLowerCase();
-            filtered = filtered.filter(item =>
-                (item.codigo && item.codigo.toLowerCase().includes(lower)) ||
-                (item.nombre && item.nombre.toLowerCase().includes(lower))
-            );
-        }
-
+        // Sorting only (search is now server-side)
         const sortable = [...filtered];
         if (sortConfig.key) {
             sortable.sort((a, b) => {
@@ -73,7 +65,16 @@ function InventarioList() {
             });
         }
         return sortable;
-    }, [articulos, sortConfig, searchText]);
+    }, [articulos, sortConfig]);
+
+    // Debounced search handler
+    const handleSearchChange = (value) => {
+        setSearchText(value);
+        if (window.inventorySearchTimeout) clearTimeout(window.inventorySearchTimeout);
+        window.inventorySearchTimeout = setTimeout(() => {
+            fetchArticulos(value);
+        }, 300);
+    };
 
     const requestSort = (key) => {
         let direction = 'asc';
@@ -145,7 +146,7 @@ function InventarioList() {
                                 autoFocus
                                 className="w-full px-4 py-2 rounded-md border-none focus:ring-2 focus:ring-blue-800 text-gray-800 font-medium"
                                 value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                             />
                         </div>
 

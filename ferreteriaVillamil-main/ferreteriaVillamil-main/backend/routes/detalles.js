@@ -5,5 +5,6 @@ const detallesCtrl = require("../controllers/detalles");
 router.post("/new", detallesCtrl.nuevoDetalle);
 router.get("/list/:id_pedido", detallesCtrl.getDetallesByIDPedido);
 router.get("/list", detallesCtrl.getDetalles);
+router.delete("/:id", detallesCtrl.deleteDetalle);
 
 module.exports = router;

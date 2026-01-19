@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { message } from "antd";
-import { SelectOutlined } from "@ant-design/icons";
+import { SelectOutlined, EditOutlined } from "@ant-design/icons";
 import axios from "axios";
 import AsignarRepartidorModal from "./AsignarRepartidorModal";
 import DetallePedidoModal from "./DetallePedidoModal";
@@ -104,11 +104,11 @@ function ListaPedidosAdmin() {
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL || '/api'}/usuarios/usuarios`
       );
-      
+
       const repartidoresActivos = response.data.filter(
         (usuario) => usuario.rol === "Repartidor" && usuario.estado === "Activo"
       );
-      
+
       setRepartidores(repartidoresActivos);
     } catch (err) {
       console.error("Error al cargar repartidores:", err);
@@ -230,6 +230,17 @@ function ListaPedidosAdmin() {
                         Ver Detalles
                       </button>
 
+                      {(pedido.estado !== "Entregado" && pedido.estado !== "Cancelado") && (
+                        <button
+                          onClick={() => navigate(`/admin/pedidos/editar/${pedido.id_pedido}`)}
+                          className="px-3 py-1 text-white font-medium text-xs sm:text-sm rounded"
+                          title="Editar pedido"
+                          style={{ backgroundColor: "#1e40af" }} // Un azul diferente para visualizar
+                        >
+                          <EditOutlined /> Editar
+                        </button>
+                      )}
+
                       <button
                         onClick={() => handleCancelarPedido(pedido)}
                         className="px-3 py-1 text-white font-medium text-xs sm:text-sm rounded"
@@ -238,7 +249,7 @@ function ListaPedidosAdmin() {
                       >
                         Cancelar
                       </button>
-                      
+
                       <button
                         onClick={() => handleOpenModal(pedido)}
                         className="px-3 py-1 text-white font-medium"
@@ -267,7 +278,7 @@ function ListaPedidosAdmin() {
       />
 
       {showDetalleModal && selectedPedido && (
-        <DetallePedidoModal 
+        <DetallePedidoModal
           pedidoId={selectedPedido.id_pedido || selectedPedido.id}
           onClose={handleCloseDetalleModal}
         />

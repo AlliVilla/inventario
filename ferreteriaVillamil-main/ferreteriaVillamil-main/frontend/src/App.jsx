@@ -58,6 +58,7 @@ function App() {
           <Route path="reportes" element={<ReportesVentas />} />
           <Route path="pedidos" element={<ListaPedidosAdmin />} />
           <Route path="pedidos/crear-pedido" element={<NuevoPedidoForm />} />
+          <Route path="pedidos/editar/:id" element={<NuevoPedidoForm />} />
           <Route path="envios" element={<ListEnviosAdmin />} />
           <Route path="perfil" element={<PerfilAdmin />} />
           <Route path="test-costos" element={<TestCostos />} />

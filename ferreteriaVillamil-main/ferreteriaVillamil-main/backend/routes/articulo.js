@@ -10,6 +10,7 @@ router.get('/list', articuloCtrl.getAllItems);
 router.get('/code/:codigo', articuloCtrl.getItemByID);
 router.delete('/delete/:codigo', articuloCtrl.deleteItem);
 router.get('/list/active', articuloCtrl.getAllActiveItems);
+router.get('/stats', articuloCtrl.getInventoryStats);
 
 
 module.exports = router;

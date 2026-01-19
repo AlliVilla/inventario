@@ -6,6 +6,46 @@ const generarEnlaceTracking = (pedidoId) => {
   return `${baseUrl}/cliente/tracking/${pedidoId}`;
 };
 
+// Función auxiliar para descontar inventario
+const deductStockForOrder = async (pedidoId, transaction) => {
+  const detalles = await Detalle_Pedido.findAll({
+    where: { id_pedido: pedidoId },
+    transaction,
+  });
+
+  const cantidadesPorArticulo = new Map();
+  for (const detalle of detalles) {
+    const idArticulo = detalle.id_articulo;
+    const cantidad = Number(detalle.cantidad ?? 0);
+    if (!idArticulo || !Number.isFinite(cantidad) || cantidad <= 0) continue;
+    cantidadesPorArticulo.set(
+      idArticulo,
+      (cantidadesPorArticulo.get(idArticulo) ?? 0) + cantidad
+    );
+  }
+
+  for (const [idArticulo, cantidad] of cantidadesPorArticulo.entries()) {
+    const articulo = await Articulo.findByPk(idArticulo, {
+      transaction,
+      lock: transaction.LOCK.UPDATE
+    });
+
+    if (!articulo) {
+      throw new Error(`Artículo asociado al pedido no encontrado (id_articulo: ${idArticulo})`);
+    }
+
+    const existenciaActual = Number(articulo.cantidad_existencia ?? 0);
+    if (existenciaActual < cantidad) {
+      throw new Error(`Stock insuficiente para el artículo ${articulo.nombre} al confirmar entrega.`);
+    }
+
+    await articulo.update(
+      { cantidad_existencia: existenciaActual - cantidad },
+      { transaction }
+    );
+  }
+};
+
 const createNewPedido = async (request, response) => {
   try {
     if (!request.body || Object.keys(request.body).length === 0) {
@@ -157,6 +197,78 @@ const updatePedido = async (request, response) => {
   }
 };
 
+const replacePedidoDetalles = async (request, response) => {
+  const { id } = request.params;
+  const transaction = await sequelize.transaction();
+  try {
+    const pedido = await Pedido.findByPk(id, { transaction });
+    if (!pedido) {
+      await transaction.rollback();
+      return response.status(404).json({
+        status: "Not Found",
+        message: "Pedido not found",
+      });
+    }
+
+    if (pedido.estado === "Entregado" || pedido.estado === "Cancelado") {
+      await transaction.rollback();
+      return response.status(409).json({
+        status: "Error",
+        message: "No se pueden editar detalles de un pedido Entregado o Cancelado"
+      });
+    }
+
+    const detallesNuevos = request.body;
+    if (!Array.isArray(detallesNuevos) || detallesNuevos.length === 0) {
+      await transaction.rollback();
+      return response.status(400).json({
+        status: "Bad Request",
+        message: "Se requiere un array de detalles"
+      });
+    }
+
+    // 1. Eliminar detalles anteriores
+    await Detalle_Pedido.destroy({
+      where: { id_pedido: id },
+      transaction
+    });
+
+    // 2. Insertar nuevos detalles
+    let nuevoTotal = 0;
+    const detallesToInsert = detallesNuevos.map(d => {
+      const sub = Number(d.subtotal) || 0;
+      nuevoTotal += sub;
+      return {
+        ...d,
+        id_pedido: id
+      };
+    });
+
+    await Detalle_Pedido.bulkCreate(detallesToInsert, { transaction });
+
+    // 3. Update total del pedido
+    const costoEnvio = Number(pedido.costo_envio) || 0;
+
+    await pedido.update({ total: nuevoTotal + costoEnvio }, { transaction });
+
+    await transaction.commit();
+
+    return response.status(200).json({
+      status: "success",
+      message: "Detalles del pedido actualizados correctamente"
+    });
+
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error en replacePedidoDetalles:", error);
+    return response.status(500).json({
+      status: "error",
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 const asignarRepartidor = async (request, response) => {
   const { id } = request.params;
   const { id_repartidor } = request.body;
@@ -226,24 +338,42 @@ const mandarCodigoEntregado = async (request, response) => {
 
 const validarCodigoEntregado = async (request, response) => {
   const { id, codigo } = request.params;
+  const transaction = await sequelize.transaction();
   try {
-    const pedido = await Pedido.findByPk(id);
+    const pedido = await Pedido.findByPk(id, { transaction });
     if (!pedido) {
+      await transaction.rollback();
       return response
         .status(404)
         .json({ status: "Not Found", message: "Pedido not found" });
     }
     if (pedido.codigo_confirmacion !== codigo) {
+      await transaction.rollback();
       return response.status(400).json({
         status: "Bad Request",
         message: "Código de confirmación incorrecto",
       });
     }
-    await pedido.update({ estado: "Entregado" });
+
+    // Descontar inventario al entregar
+    try {
+      await deductStockForOrder(id, transaction);
+    } catch (err) {
+      await transaction.rollback();
+      return response.status(409).json({
+        status: "Error",
+        message: err.message
+      });
+    }
+
+    await pedido.update({ estado: "Entregado", fecha_entrega: new Date() }, { transaction });
+
+    await transaction.commit();
     return response
       .status(200)
-      .json({ status: "success", message: "Pedido marcado como entregado" });
+      .json({ status: "success", message: "Pedido marcado como entregado e inventario actualizado" });
   } catch (error) {
+    await transaction.rollback();
     console.error("Error en validarCodigoEntregado:", error);
     return response.status(500).json({
       status: "error",
@@ -341,46 +471,42 @@ const cancelarPedidoConReposicionInventario = async (pedidoId, transaction) => {
   }
 
   if (pedido.estado === "Entregado") {
-    return { statusCode: 409, body: { status: "error", message: "No se puede cancelar un pedido entregado" } };
-  }
-
-  const detalles = await Detalle_Pedido.findAll({
-    where: { id_pedido: pedidoId },
-    transaction,
-  });
-
-  const cantidadesPorArticulo = new Map();
-  for (const detalle of detalles) {
-    const idArticulo = detalle.id_articulo;
-    const cantidad = Number(detalle.cantidad ?? 0);
-    if (!idArticulo || !Number.isFinite(cantidad) || cantidad <= 0) continue;
-    cantidadesPorArticulo.set(
-      idArticulo,
-      (cantidadesPorArticulo.get(idArticulo) ?? 0) + cantidad
-    );
-  }
-
-  for (const [idArticulo, cantidad] of cantidadesPorArticulo.entries()) {
-    const articulo = await Articulo.findByPk(idArticulo, {
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    });
-
-    if (!articulo) {
-      return {
-        statusCode: 404,
-        body: {
-          status: "Not Found",
-          message: `Artículo asociado al pedido no encontrado (id_articulo: ${idArticulo})`,
-        }
-      };
+    // Solo si estaba entregado devolvemos el stock (porque solo ahí se descontó)
+    const cantidadesPorArticulo = new Map();
+    for (const detalle of detalles) {
+      const idArticulo = detalle.id_articulo;
+      const cantidad = Number(detalle.cantidad ?? 0);
+      if (!idArticulo || !Number.isFinite(cantidad) || cantidad <= 0) continue;
+      cantidadesPorArticulo.set(
+        idArticulo,
+        (cantidadesPorArticulo.get(idArticulo) ?? 0) + cantidad
+      );
     }
 
-    const existenciaActual = Number(articulo.cantidad_existencia ?? 0);
-    await articulo.update(
-      { cantidad_existencia: existenciaActual + cantidad },
-      { transaction }
-    );
+    for (const [idArticulo, cantidad] of cantidadesPorArticulo.entries()) {
+      const articulo = await Articulo.findByPk(idArticulo, {
+        transaction,
+        lock: transaction.LOCK.UPDATE
+      });
+
+      if (!articulo) {
+        // Log pero continuar? O fallar? 
+        // Mejor fallar para consistencia
+        return {
+          statusCode: 404,
+          body: {
+            status: "Not Found",
+            message: `Artículo asociado al pedido no encontrado (id_articulo: ${idArticulo})`,
+          }
+        };
+      }
+
+      const existenciaActual = Number(articulo.cantidad_existencia ?? 0);
+      await articulo.update(
+        { cantidad_existencia: existenciaActual + cantidad },
+        { transaction }
+      );
+    }
   }
 
   await pedido.update(
@@ -451,6 +577,27 @@ const updateEstadoPedido = async (request, response) => {
         status: "Not Found",
         message: "Pedido not found",
       });
+    }
+
+    // Si pasamos a entregado manual, descontar stock
+    if (estado === "Entregado" && pedido.estado !== "Entregado") {
+      const transaction = await sequelize.transaction();
+      try {
+        await deductStockForOrder(id, transaction);
+        await pedido.update({ estado, fecha_entrega: new Date() }, { transaction });
+        await transaction.commit();
+        return response.status(200).json({
+          status: "success",
+          message: "Estado del pedido actualizado e inventario descontado",
+          data: pedido,
+        });
+      } catch (err) {
+        await transaction.rollback();
+        return response.status(409).json({
+          status: "Error",
+          message: err.message
+        });
+      }
     }
 
     await pedido.update({ estado });
@@ -603,5 +750,6 @@ module.exports = {
   asignarRepartidor,
   cancelarEnvio,
   updateEstadoPedido,
-  getPedidoClienteTracking
+  getPedidoClienteTracking,
+  replacePedidoDetalles
 };

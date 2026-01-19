@@ -1,8 +1,8 @@
-const {Articulo, Detalle_Pedido, sequelize} = require('../models');
+const { Articulo, Detalle_Pedido, sequelize } = require('../models');
 const { Op, Sequelize } = require("sequelize");
 const { uploadImage } = require('../middleware/upload');
 
-function checkForNull(data, res){
+function checkForNull(data, res) {
     if (!data || Object.keys(data).length === 0) {
         res.status(400).json({
             status: "Error",
@@ -10,7 +10,7 @@ function checkForNull(data, res){
         });
         return false;
     };
-        if (!data.codigo) {
+    if (!data.codigo) {
         res.status(422).json({
             status: "Error",
             message: "Field 'codigo' is required"
@@ -23,18 +23,18 @@ function checkForNull(data, res){
 const nuevoArticulo = async (request, response) => {
     try {
         const data = request.body;
-        
+
         // Handle file upload
         if (request.file) {
             data.foto_url = `/uploads/${request.file.filename}`;
         }
-        
+
         if (!checkForNull(data, response)) return;
 
         const check = await Articulo.findOne({
             where: { codigo: data.codigo }
         });
-        if(!check){
+        if (!check) {
             const newArticulo = await Articulo.create(data);
             return response.status(201).json({
                 status: "Success",
@@ -49,35 +49,35 @@ const nuevoArticulo = async (request, response) => {
         }
     } catch (error) {
         return response.status(500).json({
-                status: "Error",
-                message: error.message
-            });
+            status: "Error",
+            message: error.message
+        });
     }
 }
 
 const editArticulo = async (request, response) => {
-    try{
+    try {
         const data = request.body;
-        
+
         console.log('=== BACKEND: Datos recibidos ===');
         console.log('request.body:', data);
         console.log('request.file:', request.file);
-        
+
         // Handle file upload
         if (request.file) {
             data.foto_url = `/uploads/${request.file.filename}`;
             console.log('=== BACKEND: Archivo detectado, foto_url actualizado a:', data.foto_url);
         }
-        
+
         // Handle photo deletion (empty string means delete)
         if (data.foto_url === '') {
             data.foto_url = null;
             console.log('=== BACKEND: Foto eliminada, foto_url establecido a null');
         }
-        
+
         console.log('=== BACKEND: Datos finales para actualizar ===');
         console.log('data final:', data);
-        
+
         if (!data || Object.keys(data).length === 0) {
             response.status(400).json({
                 status: "Error",
@@ -87,10 +87,10 @@ const editArticulo = async (request, response) => {
         };
 
         const articulo = await Articulo.findOne({
-            where : { codigo: request.params.codigo }
+            where: { codigo: request.params.codigo }
         });
 
-        if (articulo){
+        if (articulo) {
             await articulo.update(data)
             return response.status(200).json({
                 status: "Success",
@@ -104,22 +104,24 @@ const editArticulo = async (request, response) => {
             });
         };
 
-    } catch(error) {
+    } catch (error) {
         console.log('=== BACKEND: Error en editArticulo ===');
         console.log('Error:', error);
         response.status(500).json({
-                status: "Error",
-                message: error.message
-            });
+            status: "Error",
+            message: error.message
+        });
     }
 }
 
 const lowStockItems = async (request, response) => {
-    try{
+    try {
         const items = await Articulo.findAll({
-            where: { cantidad_existencia: { 
-                [Op.lte]: Sequelize.col('stock_minimo') 
-            } }
+            where: {
+                cantidad_existencia: {
+                    [Op.lte]: Sequelize.col('stock_minimo')
+                }
+            }
         })
 
         return response.status(200).json({
@@ -129,26 +131,49 @@ const lowStockItems = async (request, response) => {
 
     } catch (error) {
         response.status(500).json({
-                status: "Error",
-                message: error.message
-            });
+            status: "Error",
+            message: error.message
+        });
     }
 }
 
 const getAllItems = async (request, response) => {
     try {
+        const { search, limit = 200 } = request.query;
+
+        const where = {};
+
+        // Add search filter if provided
+        if (search && search.trim()) {
+            const searchTerm = search.trim().toLowerCase();
+            where[Op.or] = [
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('nombre')),
+                    { [Op.like]: `%${searchTerm}%` }
+                ),
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('codigo')),
+                    { [Op.like]: `%${searchTerm}%` }
+                )
+            ];
+        }
+
         const items = await Articulo.findAll({
-        order: [
-            ['id_articulo', 'ASC'] 
-        ]});
+            where,
+            limit: parseInt(limit),
+            order: [['id_articulo', 'ASC']],
+            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'costo_unitario', 'cantidad_existencia', 'foto_url', 'estado']
+        });
 
         return response.status(200).json({
             status: "Success",
-            data: items
+            data: items,
+            count: items.length
         });
     } catch (error) {
+        console.error("Error in getAllItems:", error);
         return response.status(500).json({
-            status:"Error",
+            status: "Error",
             message: error.message
         })
     }
@@ -156,17 +181,41 @@ const getAllItems = async (request, response) => {
 
 const getAllActiveItems = async (request, response) => {
     try {
+        const { search, limit = 100 } = request.query;
+
+        const where = { estado: "Disponible" };
+
+        // Add search filter if provided
+        if (search && search.trim()) {
+            const searchTerm = search.trim().toLowerCase();
+            where[Op.or] = [
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('nombre')),
+                    { [Op.like]: `%${searchTerm}%` }
+                ),
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('codigo')),
+                    { [Op.like]: `%${searchTerm}%` }
+                )
+            ];
+        }
+
         const items = await Articulo.findAll({
-            where: {estado: "Disponible"}
+            where,
+            limit: parseInt(limit),
+            order: [['nombre', 'ASC']],
+            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'cantidad_existencia', 'foto_url', 'estado']
         });
 
         return response.status(200).json({
             status: "Success",
-            data: items
+            data: items,
+            count: items.length
         });
     } catch (error) {
+        console.error("Error in getAllActiveItems:", error);
         return response.status(500).json({
-            status:"Error",
+            status: "Error",
             message: error.message
         })
     }
@@ -177,10 +226,10 @@ const getItemByID = async (request, response) => {
         const data = request.params.codigo;
 
         const item = await Articulo.findOne({
-            where: { codigo: data}
+            where: { codigo: data }
         });
-        
-        if(!item){
+
+        if (!item) {
             return response.status(404).json({
                 status: "Not Found",
                 message: "Requested code does not exist"
@@ -193,7 +242,7 @@ const getItemByID = async (request, response) => {
 
     } catch (error) {
         return response.status(500).json({
-            status:"Error",
+            status: "Error",
             message: error.message
         })
     }
@@ -243,6 +292,35 @@ const deleteItem = async (request, response) => {
     }
 };
 
+const getInventoryStats = async (request, response) => {
+    try {
+        const result = await Articulo.findAll({
+            attributes: [
+                [sequelize.fn('SUM', sequelize.literal('cantidad_existencia * costo_unitario')), 'valorTotal'],
+                [sequelize.fn('SUM', sequelize.col('cantidad_existencia')), 'unidadesTotales'],
+                [sequelize.fn('COUNT', sequelize.col('id_articulo')), 'totalProductos']
+            ],
+            raw: true
+        });
+
+        const stats = result[0] || {};
+
+        return response.status(200).json({
+            status: "Success",
+            data: {
+                valorInventario: parseFloat(stats.valorTotal) || 0,
+                unidadesTotales: parseInt(stats.unidadesTotales) || 0,
+                totalProductos: parseInt(stats.totalProductos) || 0
+            }
+        });
+    } catch (error) {
+        console.error("Error in getInventoryStats:", error);
+        return response.status(500).json({
+            status: "Error",
+            message: error.message
+        })
+    }
+}
 
 module.exports = {
     nuevoArticulo,
@@ -252,5 +330,6 @@ module.exports = {
     getItemByID,
     deleteItem,
     getAllActiveItems,
+    getInventoryStats,
     uploadImage
 }

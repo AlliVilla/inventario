@@ -16,7 +16,9 @@ const ReportesVentas = () => {
         totalVentas: 0,
         costoTotal: 0,
         utilidadTotal: 0,
-        cantidadVentas: 0
+        cantidadVentas: 0,
+        valorInventarioActual: 0,
+        unidadesInventario: 0
     });
 
     useEffect(() => {
@@ -25,14 +27,22 @@ const ReportesVentas = () => {
 
     const fetchData = async () => {
         try {
-            // Fetch articles to get cost price
+            // Fetch articles to get cost price (for calculating per-sale costs)
             const articlesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list`);
             const articlesMap = new Map();
+
             if (articlesRes.data && articlesRes.data.data) {
-                // Use String keys for the Map to avoid type-mismatch (number vs string)
-                articlesRes.data.data.forEach(a => articlesMap.set(String(a.id_articulo), a));
+                articlesRes.data.data.forEach(a => {
+                    articlesMap.set(String(a.id_articulo), a);
+                });
             }
             setArticulos(articlesMap);
+
+            // Fetch inventory stats (aggregate data without limits)
+            const statsRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/stats`);
+            const invStats = statsRes.data?.data || {};
+            const invValue = invStats.valorInventario || 0;
+            const invUnits = invStats.unidadesTotales || 0;
 
             // Fetch sales (Ventas)
             const ventasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/list`);
@@ -71,7 +81,8 @@ const ReportesVentas = () => {
             });
 
             setFilteredVentas(filtered);
-            calculateStats(filtered, articlesMap);
+            setFilteredVentas(filtered);
+            calculateStats(filtered, articlesMap, { valorInventarioActual: invValue, unidadesInventario: invUnits });
 
             if (filtered.length === 0 && combinedData.length > 0) {
                 message.info("No hay transacciones registradas en el rango seleccionado.");
@@ -82,7 +93,7 @@ const ReportesVentas = () => {
         }
     };
 
-    const calculateStats = (data, articlesMap) => {
+    const calculateStats = (data, articlesMap, invStats = null) => {
         let totalIngresos = 0;
         let costoMercancia = 0;
         let totalEnvios = 0;
@@ -120,7 +131,10 @@ const ReportesVentas = () => {
             totalVentas: totalIngresos,
             costoTotal: costoMercancia,
             utilidadTotal: (totalIngresos - totalEnvios) - costoMercancia,
-            cantidadVentas: data.filter(v => v.estado !== 'Cancelada' && v.estado !== 'Cancelado').length
+            cantidadVentas: data.filter(v => v.estado !== 'Cancelada' && v.estado !== 'Cancelado').length,
+            // Use passed invStats or fallback to current state to preserve values during filtering
+            valorInventarioActual: invStats ? invStats.valorInventarioActual : stats.valorInventarioActual,
+            unidadesInventario: invStats ? invStats.unidadesInventario : stats.unidadesInventario
         });
     };
 
@@ -304,7 +318,23 @@ const ReportesVentas = () => {
             </div>
 
             {/* Stats Cards - Colorful & Equal Height */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                {/* Inventario Actual (Nuevo) */}
+                <div className="bg-[#4F46E5] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
+                            <ShoppingCartOutlined className="text-2xl text-white" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Stock</span>
+                    </div>
+                    <div>
+                        <p className="text-indigo-200 text-sm font-medium mb-1">Valor Inventario Actual</p>
+                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                            L. {stats.valorInventarioActual.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </h3>
+                        <p className="text-xs text-indigo-200 mt-1 opacity-80 backdrop-blur-sm">{stats.unidadesInventario} unidades totales</p>
+                    </div>
+                </div>
                 {/* Ventas Totales */}
                 <div className="bg-[#163269] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">

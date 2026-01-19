@@ -21,17 +21,16 @@ const Ventas = () => {
         fetchArticulos();
     }, []);
 
-    useEffect(() => {
-        handleSearch(searchText);
-    }, [articulos]); // Re-filter if articulos change
-
-    const fetchArticulos = async () => {
+    const fetchArticulos = async (searchQuery = '') => {
         try {
+            const params = searchQuery ? { search: searchQuery, limit: 100 } : { limit: 50 };
             const response = await axios.get(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list/active`
+                `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list/active`,
+                { params }
             );
             if (response.data && response.data.data) {
                 setArticulos(response.data.data);
+                setFilteredArticulos(response.data.data);
             }
         } catch (error) {
             console.error("Error cargando artículos:", error);
@@ -41,16 +40,11 @@ const Ventas = () => {
 
     const handleSearch = (value) => {
         setSearchText(value);
-        if (!value) {
-            setFilteredArticulos(articulos);
-            return;
-        }
-        const lower = value.toLowerCase();
-        const filtered = articulos.filter(a =>
-            a.nombre.toLowerCase().includes(lower) ||
-            a.codigo.toLowerCase().includes(lower)
-        );
-        setFilteredArticulos(filtered);
+        // Debounce server-side search
+        if (window.searchTimeout) clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(() => {
+            fetchArticulos(value);
+        }, 300); // Wait 300ms after user stops typing
     };
 
     const addToCart = (articulo) => {

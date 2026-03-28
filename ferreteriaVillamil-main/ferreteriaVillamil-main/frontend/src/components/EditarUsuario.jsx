@@ -117,7 +117,7 @@ function EditarUsuario() {
 
       message.success("Usuario actualizado exitosamente");
 
-      // Actualizar sessionStorage con los datos actualizados del usuario
+      // Actualizar localStorage con los datos actualizados del usuario
       try {
         const updatedResponse = await axios.get(
           `${
@@ -125,14 +125,14 @@ function EditarUsuario() {
           }/usuarios/usuarios/${id}`
         );
         const updatedUserData = updatedResponse.data;
-        sessionStorage.setItem("usuario", JSON.stringify(updatedUserData));
+        localStorage.setItem("usuario", JSON.stringify(updatedUserData));
         
         // Forzar actualización del sidebar emitiendo un evento personalizado
         window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
           detail: updatedUserData 
         }));
       } catch (err) {
-        console.log("Error al actualizar sessionStorage:", err);
+        console.log("Error al actualizar localStorage:", err);
       }
 
       navigate("/admin/usuarios");

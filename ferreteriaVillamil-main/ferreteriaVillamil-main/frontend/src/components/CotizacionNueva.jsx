@@ -19,7 +19,7 @@ const CotizacionNueva = () => {
     const [selectedProduct, setSelectedProduct] = useState(null);
     const navigate = useNavigate();
 
-    const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+    const usuario = JSON.parse(localStorage.getItem('usuario'));
 
     useEffect(() => {
         fetchArticulos();
@@ -134,7 +134,7 @@ const CotizacionNueva = () => {
 
             await axios.post(`${import.meta.env.VITE_API_URL}/cotizaciones`, cotizacionData, {
                 headers: {
-                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 

@@ -15,7 +15,7 @@ const Ventas = () => {
     const [previewModal, setPreviewModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+    const usuario = JSON.parse(localStorage.getItem('usuario'));
 
     useEffect(() => {
         fetchArticulos();

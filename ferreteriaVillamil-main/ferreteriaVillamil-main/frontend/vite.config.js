@@ -7,6 +7,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // Accesible desde la red local
     port: 5173,
+    watch: {
+      usePolling: true,
+    },
     strictPort: true,
       // Añade esta línea para permitir el host de Cloudflare
     allowedHosts: [

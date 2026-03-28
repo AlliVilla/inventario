@@ -6,8 +6,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
-    const usuario = sessionStorage.getItem('usuario');
+    const token = localStorage.getItem('token');
+    const usuario = localStorage.getItem('usuario');
     
     if (token && usuario) {
       const userData = JSON.parse(usuario);
@@ -35,7 +35,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
   // Si se requiere un rol específico y no coincide, redirigir al login
   if (requiredRole) {
-    const usuario = sessionStorage.getItem('usuario');
+    const usuario = localStorage.getItem('usuario');
     const userData = JSON.parse(usuario);
     if (userData.rol !== requiredRole) {
       return <Navigate to="/" replace />;

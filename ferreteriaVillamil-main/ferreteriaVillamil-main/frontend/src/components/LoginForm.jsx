@@ -28,8 +28,8 @@ function LoginForm() {
       
       // Guardar token y datos del usuario
       if (response.data.token && response.data.usuario) {
-        sessionStorage.setItem('token', response.data.token);
-        sessionStorage.setItem('usuario', JSON.stringify(response.data.usuario));
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('usuario', JSON.stringify(response.data.usuario));
         
         // Redirigir según el rol
         if (response.data.usuario.rol === 'Administrador') {

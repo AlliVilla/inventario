@@ -188,7 +188,7 @@ const loginUsuario = async (req, res) => {
         nombre: user.nombre
       },
       process.env.JWT_SECRET || 'ferreteria_villamil_secret_key_2024',
-      { expiresIn: '2h' }
+      { expiresIn: '1d' }
     );
 
     const usuarioSinClave = {

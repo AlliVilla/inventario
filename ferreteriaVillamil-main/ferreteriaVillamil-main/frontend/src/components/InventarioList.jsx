@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar, message } from 'antd';
+import { Avatar, message, Image } from 'antd';
 import { DeleteOutlined, EditOutlined, LockOutlined, PlusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,14 @@ function InventarioList() {
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const navigate = useNavigate();
     const baseUrl = import.meta.env.VITE_API_URL;
+    const baseImageUrl = baseUrl?.replace('/api', '') || 'http://localhost:3000';
+
+    const getFullImageUrl = (foto_url) => {
+        if (!foto_url) return '/placeholder-product.png'; // Make sure this asset exists or use a fallback
+        if (foto_url.startsWith('http')) return foto_url;
+        const cleanPath = foto_url.startsWith('/') ? foto_url.slice(1) : foto_url;
+        return `${baseImageUrl}/${cleanPath}`;
+    };
 
     const fetchArticulos = async (searchQuery = '') => {
         try {
@@ -164,6 +172,9 @@ function InventarioList() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b-2 border-gray-200">
+                                    <th className="px-3 py-4 text-left text-sm lg:text-lg font-bold text-black">
+                                        Imagen
+                                    </th>
                                     <th className="px-3 py-4 text-left text-sm lg:text-lg font-bold text-black" onClick={() => requestSort('codigo')}>
                                         Codigo {sortConfig.key === 'codigo' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                                     </th>
@@ -197,6 +208,15 @@ function InventarioList() {
                                         className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50"
                                             }`}
                                     >
+                                        <td className="px-4 py-2">
+                                            <Image
+                                                width={60}
+                                                height={60}
+                                                className="rounded-lg object-cover shadow-sm cursor-zoom-in"
+                                                src={getFullImageUrl(item.foto_url)}
+                                                fallback="https://via.placeholder.com/150?text=No+Imagen"
+                                            />
+                                        </td>
                                         <td className="px-4 py-4 text-sm lg:text-lg text-black">
                                             {item.codigo}
                                         </td>

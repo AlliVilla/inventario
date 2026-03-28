@@ -26,7 +26,7 @@ const CotizacionesList = () => {
         try {
             const response = await axios.get(`${import.meta.env.VITE_API_URL}/cotizaciones`, {
                 headers: {
-                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
             if (response.data) {
@@ -59,7 +59,7 @@ const CotizacionesList = () => {
         try {
             await axios.delete(`${import.meta.env.VITE_API_URL}/cotizaciones/${id}`, {
                 headers: {
-                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
             message.success("Cotización eliminada correctamente");

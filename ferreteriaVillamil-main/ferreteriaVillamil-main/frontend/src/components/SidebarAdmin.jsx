@@ -19,7 +19,7 @@ import logo from "../assets/LogoFerreteriaVillamil.png";
 
 // Configurar axios para enviar token en todas las peticiones
 axios.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem("token");
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -35,7 +35,7 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
 
   useEffect(() => {
     const updateUserData = () => {
-      const usuarioData = sessionStorage.getItem("usuario");
+      const usuarioData = localStorage.getItem("usuario");
       if (usuarioData) {
         setUserData(JSON.parse(usuarioData));
       }
@@ -43,7 +43,7 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
 
     updateUserData();
 
-    // Escuchar cambios en sessionStorage
+    // Escuchar cambios en localStorage
     const handleStorageChange = (e) => {
       if (e.key === 'usuario') {
         updateUserData();
@@ -85,8 +85,8 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
   }, []);
 
   const handleLogout = () => {
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("usuario");
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
     navigate("/");
   };
 

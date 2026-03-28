@@ -50,7 +50,7 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
             `${import.meta.env.VITE_API_URL || '/api'}/detalles/${idDetalle}`,
             {
               headers: {
-                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
               }
             }
           );

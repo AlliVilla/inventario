@@ -5,7 +5,7 @@ import { stopLocationTracking } from '../location-tracking/location';
 
 // Configurar axios para enviar token en todas las peticiones
 axios.interceptors.request.use(config => {
-  const token = sessionStorage.getItem('token');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

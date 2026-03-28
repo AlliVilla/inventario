@@ -76,7 +76,7 @@ function ListaPedidosAdmin() {
     setLoading(true);
     try {
       // Obtener usuario logueado
-      const usuarioStorage = sessionStorage.getItem("usuario");
+      const usuarioStorage = localStorage.getItem("usuario");
       if (!usuarioStorage) {
         throw new Error("No hay sesión activa");
       }

@@ -26,7 +26,7 @@ function PerfilRepartidor() {
     setLoading(true);
     
     try {
-      const usuarioStorage = sessionStorage.getItem("usuario");
+      const usuarioStorage = localStorage.getItem("usuario");
       if (!usuarioStorage) {
         throw new Error("No hay sesión activa");
       }
@@ -86,7 +86,7 @@ function PerfilRepartidor() {
     setLoading(true);
     
     try {
-      const usuarioStorage = sessionStorage.getItem("usuario");
+      const usuarioStorage = localStorage.getItem("usuario");
       if (!usuarioStorage) {
         throw new Error("No hay sesión activa");
       }
@@ -131,14 +131,14 @@ function PerfilRepartidor() {
       try {
         const updatedResponse = await axios.get(`${import.meta.env.VITE_API_URL}/usuarios/usuarios/${userId}`);
         const updatedUserData = updatedResponse.data;
-        sessionStorage.setItem("usuario", JSON.stringify(updatedUserData));
+        localStorage.setItem("usuario", JSON.stringify(updatedUserData));
         
         // Forzar actualización del sidebar emitiendo un evento personalizado
         window.dispatchEvent(new CustomEvent('userProfileUpdated', { 
           detail: updatedUserData 
         }));
       } catch (err) {
-        console.log("Error al actualizar sessionStorage:", err);
+        console.log("Error al actualizar localStorage:", err);
       }
       
       handleGetUserInfo();

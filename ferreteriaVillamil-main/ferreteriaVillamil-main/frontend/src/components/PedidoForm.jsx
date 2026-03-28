@@ -7,7 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 const { Title, Text } = Typography;
 
 function NuevoPedidoForm() {
-    const usuario = JSON.parse(sessionStorage.getItem('usuario'));
+    const usuario = JSON.parse(localStorage.getItem('usuario'));
     const id_admin_creador = usuario?.id_usuario;
     const navigate = useNavigate();
     const { id } = useParams(); // Get ID from URL if editing
@@ -41,7 +41,7 @@ function NuevoPedidoForm() {
                 {
                     params,
                     headers: {
-                        'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 }
             );
@@ -76,7 +76,7 @@ function NuevoPedidoForm() {
             const response = await axios.get(
                 `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${id}/detalles`,
                 {
-                    headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 }
             );
 
@@ -141,7 +141,7 @@ function NuevoPedidoForm() {
         try {
             const config = {
                 headers: {
-                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             };
 
@@ -191,7 +191,7 @@ function NuevoPedidoForm() {
                             detalle,
                             {
                                 headers: {
-                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                                 }
                             }
                         )

@@ -7,7 +7,7 @@ import { updateActivePedidos, stopLocationTracking } from '../location-tracking/
 
 // Configurar axios para enviar token en todas las peticiones
 axios.interceptors.request.use(config => {
-  const token = sessionStorage.getItem('token');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,8 +27,8 @@ export default function DashboardRepartidor() {
       try {
         setLoading(true);
         
-        // Obtener el ID del usuario del sessionStorage
-        const usuarioData = sessionStorage.getItem('usuario');
+        // Obtener el ID del usuario del localStorage
+        const usuarioData = localStorage.getItem('usuario');
         const usuario = usuarioData ? JSON.parse(usuarioData) : null;
         
         if (!usuario || !usuario.id_usuario) {

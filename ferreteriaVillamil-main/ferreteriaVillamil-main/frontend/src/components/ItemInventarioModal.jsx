@@ -50,6 +50,8 @@ function ModalEditarCantidad({
         </p>
         <InputNumber
             min={0}
+            step={0.01}
+            precision={2}
             value={cantidad}
             onChange={setCantidad}
             style={{ width: "100%" }}

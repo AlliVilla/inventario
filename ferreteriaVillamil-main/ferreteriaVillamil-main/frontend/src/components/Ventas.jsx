@@ -1,9 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Modal, Badge } from 'antd';
-import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, SaveOutlined, UserOutlined, PlusOutlined, MinusOutlined, EyeOutlined } from '@ant-design/icons';
+import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Modal, Badge, Divider } from 'antd';
+import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, SaveOutlined, UserOutlined, PlusOutlined, MinusOutlined, EyeOutlined, FilePdfOutlined, PrinterOutlined, CheckCircleFilled } from '@ant-design/icons';
 import axios from 'axios';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logo from '../assets/LogoFerreteriaVillamil.png';
 
 const { Title, Text } = Typography;
+
+// Estilos para la tabla del modal (no para impresión de navegador)
+const modalTableStyles = `
+    .custom-invoice-table .ant-table-thead > tr > th {
+        background-color: #f8fafc !important;
+        color: #1e293b !important;
+        font-weight: 600 !important;
+    }
+    .custom-invoice-table .ant-table-tbody > tr > td {
+        padding: 12px 16px !important;
+    }
+`;
+
+const InvoiceStyles = () => (
+    <style>{modalTableStyles}</style>
+);
 
 const Ventas = () => {
     const [articulos, setArticulos] = useState([]);
@@ -11,9 +30,13 @@ const Ventas = () => {
     const [searchText, setSearchText] = useState('');
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [clientName, setClientName] = useState('');
+    const [clientName, setClientName] = useState('Consumidor Final');
     const [previewModal, setPreviewModal] = useState(false);
+    const [successModal, setSuccessModal] = useState(false);
+    const [lastSaleData, setLastSaleData] = useState(null);
+    const [invoiceFormat, setInvoiceFormat] = useState('letter');
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [confirmModal, setConfirmModal] = useState(false);
 
     const usuario = JSON.parse(localStorage.getItem('usuario'));
 
@@ -119,7 +142,139 @@ const Ventas = () => {
         return cart.reduce((acc, item) => acc + item.subtotal, 0);
     };
 
+    const generateInvoicePDF = () => {
+        if (!lastSaleData) return;
+        const doc = new jsPDF();
+        const date = new Date().toLocaleDateString();
+        const pageHeight = doc.internal.pageSize.height;
+        const pageWidth = doc.internal.pageSize.width;
+        const reservedSpace = 95; 
+        const totalsY = pageHeight - reservedSpace;
+
+        const drawHeader = (pageDoc) => {
+            pageDoc.addImage(logo, 'PNG', 20, 12, 45, 30);
+            pageDoc.setFontSize(16);
+            pageDoc.setTextColor(0, 0, 0);
+            pageDoc.setFont("helvetica", "bold");
+            pageDoc.text("INVERSIONES MERCANTILES VILLAMIL", 130, 20, { align: "center" });
+            pageDoc.setFontSize(10);
+            pageDoc.setFont("helvetica", "normal");
+            pageDoc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 130, 26, { align: "center" });
+            pageDoc.text("Tres Cuadras Arriba del Centro de Salud", 130, 31, { align: "center" });
+            pageDoc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 130, 36, { align: "center" });
+            pageDoc.text("Correo: ferrevillamil@gmail.com", 130, 41, { align: "center" });
+            pageDoc.setFontSize(14);
+            pageDoc.setFont("helvetica", "bold");
+            pageDoc.text("FACTURA DE VENTA", 170, 55, { align: "right" });
+            pageDoc.setFontSize(12);
+            pageDoc.text(`N° FAC-${String(lastSaleData.id_venta).padStart(7, '0')}`, 170, 62, { align: "right" });
+            pageDoc.setFontSize(11);
+            pageDoc.setFont("helvetica", "normal");
+            pageDoc.text(`Cliente: ${clientName || "Consumidor Final"}`, 20, 75);
+            pageDoc.text(`Fecha: ${date}`, 140, 75);
+        };
+
+        const drawTerms = (pageDoc, yPos) => {
+            pageDoc.setFontSize(8);
+            pageDoc.setTextColor(100, 100, 100);
+            pageDoc.setFont("helvetica", "bold");
+            pageDoc.text("TÉRMINOS Y CONDICIONES:", 20, yPos);
+            pageDoc.setFontSize(7);
+            pageDoc.setFont("helvetica", "normal");
+            const terms = [
+                "1. Los precios están sujetos a cambios sin previo aviso.",
+                "2. Esta factura es un compromiso de compra.",
+                "3. La entrega de materiales está sujeta a disponibilidad de inventario.",
+                "4. Favor confirmar existencias con su vendedor."
+            ];
+            terms.forEach((line, i) => pageDoc.text(line, 20, yPos + 5 + (i * 4)));
+            pageDoc.setFont("helvetica", "bold");
+            pageDoc.text("¡ES UN PLACER SERVIRLE!", 20, yPos + 25);
+        };
+
+        const tableColumn = ["Cant.", "Descripción", "Precio Unit.", "IVA", "Total"];
+        const tableRows = lastSaleData.items.map(item => [
+            item.cantidad,
+            item.nombre,
+            parseFloat(item.precio_unitario).toFixed(2),
+            "15%",
+            parseFloat(item.subtotal).toFixed(2)
+        ]);
+
+        autoTable(doc, {
+            startY: 82,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'plain',
+            headStyles: {
+                fillColor: [22, 50, 105],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineWidth: 0.1
+            },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 20 },
+                1: { halign: 'left' },
+                2: { halign: 'right', cellWidth: 35 },
+                3: { halign: 'center', cellWidth: 20 },
+                4: { halign: 'right', cellWidth: 35 }
+            },
+            styles: { fontSize: 9, cellPadding: 3, textColor: [50, 50, 50] },
+            margin: { left: 20, right: 20, bottom: reservedSpace, top: 80 },
+            didDrawPage: () => drawHeader(doc)
+        });
+
+        const total = parseFloat(lastSaleData.total);
+        const subtotal = total / 1.15;
+        const isv = total - subtotal;
+        const totalX = 130;
+        const valueX = 190;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Importe Gravado 15%:", totalX, totalsY + 10);
+        doc.text(subtotal.toFixed(2), valueX, totalsY + 10, { align: "right" });
+        doc.text("I.S.V. 15%:", totalX, totalsY + 20);
+        doc.text(isv.toFixed(2), valueX, totalsY + 20, { align: "right" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("TOTAL A PAGAR L.", totalX, totalsY + 35);
+        doc.text(total.toFixed(2), valueX, totalsY + 35, { align: "right" });
+
+        drawTerms(doc, pageHeight - 55);
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text("Firma: ____________________________", 20, pageHeight - 20);
+        doc.text("¡Gracias por su Preferencia!", 190, pageHeight - 20, { align: "right" });
+
+        return doc;
+    };
+
+    const handlePrint = () => {
+        const doc = generateInvoicePDF();
+        if (!doc) return;
+        doc.autoPrint();
+        window.open(doc.output('bloburl'), '_blank');
+    };
+
+    const handleDownload = () => {
+        const doc = generateInvoicePDF();
+        if (!doc) return;
+        doc.save(`Factura_${lastSaleData.id_venta}.pdf`);
+    };
+
+    const resetSale = () => {
+        setCart([]);
+        setClientName("");
+        setSuccessModal(false);
+        setLastSaleData(null);
+        fetchArticulos();
+    };
+
     const handleCheckout = async () => {
+        setConfirmModal(false);
         if (cart.length === 0) {
             message.error("El carrito está vacío");
             return;
@@ -128,26 +283,28 @@ const Ventas = () => {
         setLoading(true);
         try {
             const saleData = {
-                cliente_nombre: clientName || "Cliente Contado",
+                cliente_nombre: clientName || "Consumidor Final",
                 id_usuario_vendedor: usuario?.id_usuario,
                 total: getTotal(),
                 items: cart.map(item => ({
                     id_articulo: item.id_articulo,
                     cantidad: item.cantidad,
                     precio_unitario: item.precio_unitario,
-                    subtotal: item.subtotal
+                    subtotal: item.subtotal,
+                    nombre: item.nombre // Para que lastSaleData tenga los nombres para el modal
                 }))
             };
 
-            await axios.post(
+            const response = await axios.post(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/new`,
                 saleData
             );
 
+            const newVenta = response.data.venta;
+            setLastSaleData({ ...newVenta, items: [...cart] });
+            
             message.success("Venta realizada con éxito");
-            setCart([]);
-            setClientName('');
-            fetchArticulos();
+            setSuccessModal(true);
         } catch (error) {
             console.error("Error al procesar venta:", error);
             message.error("Error al procesar la venta");
@@ -169,7 +326,7 @@ const Ventas = () => {
             background: 'linear-gradient(to bottom, #f8fafc, #e2e8f0)',
             padding: '24px'
         }}>
-            {/* Header Moderno */}
+            <InvoiceStyles />
             <div style={{
                 marginBottom: '24px',
                 background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
@@ -198,7 +355,6 @@ const Ventas = () => {
             </div>
 
             <Row gutter={24} style={{ height: 'calc(100vh - 180px)' }}>
-                {/* Panel Izquierdo: Productos */}
                 <Col span={13} style={{ height: '100%' }}>
                     <Card
                         style={{
@@ -208,9 +364,8 @@ const Ventas = () => {
                             border: 'none',
                             overflow: 'hidden'
                         }}
-                        bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '24px' }}
+                        styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', padding: '24px' } }}
                     >
-                        {/* Búsqueda Grande */}
                         <Input
                             placeholder="Buscar productos..."
                             prefix={<SearchOutlined style={{ fontSize: '20px', color: '#94a3b8' }} />}
@@ -227,7 +382,6 @@ const Ventas = () => {
                             }}
                         />
 
-                        {/* Grid de Productos */}
                         <div style={{ flex: 1, overflowY: 'auto' }}>
                             <List
                                 grid={{ gutter: 16, column: 2 }}
@@ -270,7 +424,6 @@ const Ventas = () => {
                                                         setPreviewModal(true);
                                                     }}
                                                 >
-                                                    {/* Badge de Stock */}
                                                     {item.cantidad_existencia <= 0 && (
                                                         <Badge.Ribbon text="AGOTADO" color="red" style={{ fontSize: '11px', fontWeight: '700' }} />
                                                     )}
@@ -278,7 +431,6 @@ const Ventas = () => {
                                                         <Badge.Ribbon text="BAJO STOCK" color="orange" style={{ fontSize: '11px', fontWeight: '700' }} />
                                                     )}
 
-                                                    {/* Icono de Vista */}
                                                     <div style={{
                                                         position: 'absolute',
                                                         top: '12px',
@@ -372,7 +524,6 @@ const Ventas = () => {
                     </Card>
                 </Col>
 
-                {/* Panel Derecho: Carrito */}
                 <Col span={11} style={{ height: '100%' }}>
                     <Card
                         style={{
@@ -382,9 +533,8 @@ const Ventas = () => {
                             border: 'none',
                             background: 'white'
                         }}
-                        bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '24px' }}
+                        styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', padding: '24px' } }}
                     >
-                        {/* Header Carrito */}
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -410,7 +560,6 @@ const Ventas = () => {
                             </div>
                         </div>
 
-                        {/* Cliente */}
                         <div style={{ marginBottom: '20px' }}>
                             <Input
                                 placeholder="Nombre del cliente (opcional)"
@@ -427,7 +576,6 @@ const Ventas = () => {
                             />
                         </div>
 
-                        {/* Lista Carrito */}
                         <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px' }}>
                             {cart.length === 0 ? (
                                 <div style={{
@@ -512,8 +660,9 @@ const Ventas = () => {
                                                     }}
                                                 />
                                                 <InputNumber
-                                                    min={1}
-                                                    max={item.max_stock}
+                                                    min={0.01}
+                                                    step={0.01}
+                                                    precision={2}
                                                     value={item.cantidad}
                                                     onChange={(val) => updateQuantity(item.id_articulo, val)}
                                                     style={{
@@ -553,7 +702,6 @@ const Ventas = () => {
                             )}
                         </div>
 
-                        {/* Total y Botón */}
                         <div style={{
                             background: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
                             padding: '20px',
@@ -577,7 +725,7 @@ const Ventas = () => {
                                 size="large"
                                 icon={<SaveOutlined />}
                                 loading={loading}
-                                onClick={handleCheckout}
+                                onClick={() => setConfirmModal(true)}
                                 disabled={cart.length === 0}
                                 block
                                 style={{
@@ -590,18 +738,6 @@ const Ventas = () => {
                                     boxShadow: cart.length === 0 ? undefined : '0 6px 20px rgba(5, 150, 105, 0.3)',
                                     transition: 'all 0.3s ease'
                                 }}
-                                onMouseEnter={(e) => {
-                                    if (cart.length > 0) {
-                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                        e.currentTarget.style.boxShadow = '0 10px 28px rgba(5, 150, 105, 0.4)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (cart.length > 0) {
-                                        e.currentTarget.style.transform = 'translateY(0)';
-                                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(5, 150, 105, 0.3)';
-                                    }
-                                }}
                             >
                                 PROCESAR VENTA
                             </Button>
@@ -610,7 +746,97 @@ const Ventas = () => {
                 </Col>
             </Row>
 
-            {/* Modal de Vista Previa */}
+            <Modal
+                title={<span style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e3a8a' }}>Confirmar Venta</span>}
+                open={confirmModal}
+                onCancel={() => setConfirmModal(false)}
+                footer={[
+                    <Button 
+                        key="back" 
+                        onClick={() => setConfirmModal(false)}
+                        style={{ 
+                            height: '45px', 
+                            width: '180px', 
+                            borderRadius: '12px', 
+                            fontWeight: '600',
+                            border: '1px solid #d9d9d9',
+                            color: '#555' 
+                        }}
+                    >
+                        Cancelar
+                    </Button>,
+                    <Button 
+                        key="submit" 
+                        type="primary" 
+                        loading={loading} 
+                        onClick={handleCheckout}
+                        style={{ 
+                            height: '45px', 
+                            width: '180px', 
+                            borderRadius: '12px', 
+                            fontWeight: '700',
+                            background: '#059669',
+                            border: 'none'
+                        }}
+                    >
+                        Confirmar
+                    </Button>
+                ]}
+                centered
+                width={480}
+                styles={{ 
+                    content: { borderRadius: '16px' },
+                    header: { borderBottom: '1px solid #f0f0f0', paddingBottom: '16px' },
+                    body: { padding: '24px' }
+                }}
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div>
+                        <Text type="secondary" style={{ fontSize: '13px', display: 'block', marginBottom: '4px' }}>Cliente</Text>
+                        <Text strong style={{ fontSize: '18px', color: '#111' }}>{clientName || "Consumidor Final"}</Text>
+                    </div>
+
+                    <div>
+                        <Text type="secondary" style={{ fontSize: '13px', display: 'block', marginBottom: '12px' }}>
+                            {cart.length} {cart.length === 1 ? 'Producto' : 'Productos'}
+                        </Text>
+                        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
+                            {cart.map(item => (
+                                <div key={item.id_articulo} style={{ marginBottom: '12px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <Text strong style={{ fontSize: '14px', color: '#333' }}>{item.nombre}</Text>
+                                        <Text style={{ fontSize: '14px' }}>L. {parseFloat(item.subtotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</Text>
+                                    </div>
+                                    <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>Cantidad: {item.cantidad}</Text>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <Divider style={{ margin: '8px 0' }} />
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Text style={{ color: '#666' }}>Subtotal</Text>
+                            <Text style={{ color: '#333' }}>L. {(getTotal() / 1.15).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</Text>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Text style={{ color: '#666' }}>ISV (15%)</Text>
+                            <Text style={{ color: '#333' }}>L. {(getTotal() - (getTotal() / 1.15)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</Text>
+                        </div>
+                    </div>
+
+                    <Divider style={{ margin: '8px 0' }} />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text strong style={{ fontSize: '16px' }}>Total</Text>
+                        <Text strong style={{ fontSize: '28px', color: '#1e3a8a' }}>
+                            L. {getTotal().toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                        </Text>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal
                 open={previewModal}
                 onCancel={() => setPreviewModal(false)}
@@ -717,6 +943,162 @@ const Ventas = () => {
                         </Button>
                     </div>
                 )}
+            </Modal>
+
+            <Modal
+                open={successModal}
+                onCancel={resetSale}
+                footer={null}
+                width={850}
+                centered
+                closable={true}
+                className="invoice-modal-full"
+            >
+                <div className="invoice-preview-container">
+                    <Row align="middle" style={{ marginBottom: '30px' }}>
+                        <Col span={6}>
+                            <img src={logo} alt="Logo" style={{ width: '150px' }} />
+                        </Col>
+                        <Col span={12} style={{ textAlign: 'center' }}>
+                            <Title level={3} style={{ margin: 0, color: '#000' }}>INVERSIONES MERCANTILES VILLAMIL</Title>
+                            <Text style={{ display: 'block' }}>Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,</Text>
+                            <Text style={{ display: 'block' }}>Tres Cuadras Arriba del Centro de Salud</Text>
+                            <Text style={{ display: 'block' }}>R.T.N. 05011998149871  Tel. 95086231- 96096433</Text>
+                            <Text style={{ display: 'block' }}>Correo: ferrevillamil@gmail.com</Text>
+                        </Col>
+                        <Col span={6} style={{ textAlign: 'right' }}>
+                            <Title level={4} style={{ margin: 0, color: '#000' }}>FACTURA DE VENTA</Title>
+                            <Title level={5} style={{ margin: 0, color: '#000' }}>N° FAC-{String(lastSaleData?.id_venta).padStart(7, '0')}</Title>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={24} style={{ marginBottom: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <Col span={12}>
+                            <Text strong>Cliente: </Text>
+                            <Text>{clientName || "Consumidor Final"}</Text>
+                        </Col>
+                        <Col span={12} style={{ textAlign: 'right' }}>
+                            <Text strong>Fecha: </Text>
+                            <Text>{new Date().toLocaleDateString()}</Text>
+                        </Col>
+                    </Row>
+
+                    <Table
+                        dataSource={lastSaleData?.items || []}
+                        columns={[
+                            { title: 'Cant.', dataIndex: 'cantidad', key: 'qty', width: 80, align: 'center' },
+                            { title: 'Descripción', dataIndex: 'nombre', key: 'desc' },
+                            {
+                                title: 'Precio Unit.',
+                                dataIndex: 'precio_unitario',
+                                key: 'price',
+                                align: 'right',
+                                render: (val) => `L. ${parseFloat(val || 0).toFixed(2)}`
+                            },
+                            {
+                                title: 'Total',
+                                dataIndex: 'subtotal',
+                                key: 'total',
+                                align: 'right',
+                                render: (val) => <Text strong>L. {parseFloat(val || 0).toFixed(2)}</Text>
+                            }
+                        ]}
+                        pagination={false}
+                        rowKey={(record, index) => index}
+                        className="custom-invoice-table"
+                        style={{ marginBottom: '30px' }}
+                    />
+
+                    <Row gutter={40}>
+                        <Col span={14}>
+                            <div style={{ background: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                                <Text strong style={{ fontSize: '0.8rem', color: '#6b7280', display: 'block', marginBottom: '8px' }}>
+                                    TÉRMINOS Y CONDICIONES:
+                                </Text>
+                                <ul style={{ fontSize: '0.75rem', color: '#6b7280', paddingLeft: '15px', margin: 0 }}>
+                                    <li>Los precios están sujetos a cambios sin previo aviso.</li>
+                                    <li>Esta cotización tiene una validez de 15 días calendario.</li>
+                                    <li>La entrega de materiales está sujeta a disponibilidad de inventario.</li>
+                                    <li>Favor confirmar existencias antes de realizar su pago.</li>
+                                </ul>
+                                <Text strong style={{ fontSize: '0.8rem', color: '#163269', display: 'block', marginTop: '12px' }}>
+                                    ¡ES UN PLACER SERVIRLE!
+                                </Text>
+                            </div>
+                        </Col>
+                        <Col span={10}>
+                            <div style={{ textAlign: 'right' }}>
+                                <Row justify="space-between" style={{ marginBottom: '4px' }}>
+                                    <Text>Importe Gravado 15%:</Text>
+                                    <Text>L. {(parseFloat(lastSaleData?.total || 0) / 1.15).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                                </Row>
+                                <Row justify="space-between" style={{ marginBottom: '4px' }}>
+                                    <Text>I.S.V. 15%:</Text>
+                                    <Text>L. {(parseFloat(lastSaleData?.total || 0) - (parseFloat(lastSaleData?.total || 0) / 1.15)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                                </Row>
+                                <Divider style={{ margin: '12px 0' }} />
+                                <Row justify="space-between">
+                                    <Text strong style={{ fontSize: '1.2rem' }}>Total A Pagar:</Text>
+                                    <Text strong style={{ fontSize: '1.5rem', color: '#163269' }}>
+                                        L. {parseFloat(lastSaleData?.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </Text>
+                                </Row>
+                            </div>
+                        </Col>
+                    </Row>
+
+                    <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <Row justify="space-between" align="bottom">
+                            <Col span={12}>
+                                <div style={{ borderTop: '1px solid #000', width: '250px', marginTop: '40px', textAlign: 'center' }}>
+                                    <Text>Firma Autorizada</Text>
+                                </div>
+                            </Col>
+                            <Col span={12} style={{ textAlign: 'right' }}>
+                                <Text strong style={{ color: '#163269', display: 'block' }}>¡Gracias por su Preferencia!</Text>
+                                <Text type="secondary" style={{ fontSize: '0.8rem' }}>La Factura es un compromiso de compra.</Text>
+                            </Col>
+                        </Row>
+                    </div>
+                </div>
+
+                <div className="no-print" style={{ 
+                    marginTop: '20px', 
+                    display: 'flex', 
+                    gap: '12px', 
+                    justifyContent: 'flex-end', 
+                    borderTop: '1px solid #eee', 
+                    paddingTop: '20px' 
+                }}>
+                    <Button size="large" onClick={resetSale}>
+                        Cerrar
+                    </Button>
+                    <Button
+                        size="large"
+                        icon={<FilePdfOutlined />}
+                        onClick={handleDownload}
+                    >
+                        Descargar PDF
+                    </Button>
+                    <Button
+                        type="primary"
+                        size="large"
+                        icon={<PrinterOutlined />}
+                        style={{ background: '#163269' }}
+                        onClick={handlePrint}
+                    >
+                        Imprimir
+                    </Button>
+                    <Button
+                        type="primary"
+                        size="large"
+                        icon={<PlusOutlined />}
+                        style={{ background: '#059669' }}
+                        onClick={resetSale}
+                    >
+                        Nueva Venta
+                    </Button>
+                </div>
             </Modal>
         </div>
     );

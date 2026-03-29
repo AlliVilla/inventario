@@ -48,6 +48,7 @@ const nuevoArticulo = async (request, response) => {
             });
         }
     } catch (error) {
+        console.error("DEBUG ERROR NUEVOARTICULO:", error);
         return response.status(500).json({
             status: "Error",
             message: error.message

@@ -34,7 +34,8 @@ function DashboardAdmin() {
         pedidos_entregados: 0,
         costo_items: 0.0,
         ingresos_brut: 0.0,
-        utilidad: 0.0
+        utilidad: 0.0,
+        valor_inventario: 0.0
     });
     const [rawData, setRawData] = useState({
         pedidos: [],
@@ -363,11 +364,19 @@ function DashboardAdmin() {
 
         const utilidad = ingresos_brut - costo_items;
 
+        // Calcular Valor total del inventario actual
+        const valorTotalInventario = rawData.articulos.reduce((acc, art) => {
+            const stock = Number(art.cantidad_existencia) || 0;
+            const costo = Number(art.costo_unitario) || 0;
+            return acc + (stock * costo);
+        }, 0);
+
         const resumenIngresos = {
             pedidos_entregados: pedidos_count + ventas_count, // Sumamos ventas al contador "pedidos_entregados" para simplicidad visual o cambiamos label
             costo_items,
             ingresos_brut,
-            utilidad
+            utilidad,
+            valor_inventario: valorTotalInventario
         };
 
         setCapitalUtil(resumenIngresos);
@@ -415,7 +424,7 @@ function DashboardAdmin() {
                 </div>
 
                 {/* GRID */}
-                <div className="grid py-3 grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="grid py-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                     <Card title="Informe repartidores" color="bg-[#163269]">
                         <div className="h-[150px] overflow-y-auto">
                             <table className="w-full">
@@ -542,6 +551,18 @@ function DashboardAdmin() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </Card>
+
+                    <Card title="Valor del Inventario" color="bg-[#5DADE2]">
+                        <div className="h-[150px] flex flex-col items-center justify-center text-center">
+                            <div className="text-gray-600 text-sm mb-2">Valor total en almacén (costo)</div>
+                            <div className="text-3xl font-bold text-[#163269]">
+                                L.{capitalUtil.valor_inventario.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="mt-4 px-3 py-1 bg-blue-50 text-[#163269] rounded-full text-xs font-semibold">
+                                {rawData.articulos.length} artículos en total
+                            </div>
                         </div>
                     </Card>
                 </div>

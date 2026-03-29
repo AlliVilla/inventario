@@ -301,8 +301,9 @@ function NuevoArticuloForm() {
             <input
               name="cantidad_existencia"
               type="number"
+              step="0.01"
               value={form.cantidad_existencia}
-              onChange={handleInteger}
+              onChange={handleChange}
               placeholder="Ingresa la cantidad de producto en unidades en existencia"
               className="w-full px-4 py-3 bg-gray-200 border border-gray-300 rounded-lg focus:outline-none focus:bg-white transition-colors"
               style={{ focusBorderColor: "#163269" }}
@@ -323,8 +324,9 @@ function NuevoArticuloForm() {
             <input
               name="stock_minimo"
               type="number"
+              step="0.01"
               value={form.stock_minimo}
-              onChange={handleInteger}
+              onChange={handleChange}
               placeholder="Ingresa la cantidad mínima del producto antes de rellenar"
               className="w-full px-4 py-3 bg-gray-200 border border-gray-300 rounded-lg focus:outline-none focus:bg-white transition-colors"
               style={{ focusBorderColor: "#163269" }}

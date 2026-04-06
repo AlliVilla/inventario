@@ -35,8 +35,9 @@ const getOrigins = () => {
   }
   origins.push(/^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):[0-9]+$/);
 
-  // Agregar cualquier dominio de Cloudflare Tunnel
+  // Agregar cualquier dominio de Cloudflare Tunnel u Render
   origins.push(/^https:\/\/.*\.trycloudflare\.com$/);
+  origins.push(/^https:\/\/.*\.onrender\.com$/);
 
   return origins;
 };

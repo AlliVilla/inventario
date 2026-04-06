@@ -11,11 +11,18 @@ const { Title, Text } = Typography;
 
 const CotizacionesList = () => {
     const [cotizaciones, setCotizaciones] = useState([]);
-    const [originalData, setOriginalData] = useState([]); // Para guardar la data cruda del backend
+    const [originalData, setOriginalData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [detailsVisible, setDetailsVisible] = useState(false);
     const [selectedCotizacion, setSelectedCotizacion] = useState(null);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         fetchCotizaciones();
@@ -80,41 +87,47 @@ const CotizacionesList = () => {
         const totalsY = pageHeight - reservedSpace;
 
         const drawHeader = (pageDoc) => {
-            pageDoc.addImage(FerreteriaLogo, 'PNG', 20, 12, 45, 30);
-            pageDoc.setFontSize(16);
-            pageDoc.setTextColor(0, 0, 0);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("INVERSIONES MERCANTILES VILLAMIL", 130, 20, { align: "center" });
-            pageDoc.setFontSize(10);
-            pageDoc.setFont("helvetica", "normal");
-            pageDoc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 130, 26, { align: "center" });
-            pageDoc.text("Tres Cuadras Arriba del Centro de Salud", 130, 31, { align: "center" });
-            pageDoc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 130, 36, { align: "center" });
-            pageDoc.text("Correo: ferrevillamil@gmail.com", 130, 41, { align: "center" });
-            pageDoc.setFontSize(14);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("COTIZACIÓN", 170, 55, { align: "right" });
+            pageDoc.addImage(FerreteriaLogo, 'PNG', 10, 7, 65, 43); // Logo XXL
             pageDoc.setFontSize(12);
-            pageDoc.text(`N° ${String(cot.id_cotizacion).padStart(7, '0')}`, 170, 62, { align: "right" });
-            pageDoc.setFontSize(11);
-            pageDoc.setFont("helvetica", "normal");
-            pageDoc.text(`Cliente: ${cot.cliente_nombre}`, 20, 75);
-            pageDoc.text(`Fecha: ${date}`, 140, 75);
+            pageDoc.setTextColor(0, 0, 0);
+            pageDoc.setFont("times", "bold");
+            pageDoc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
+            pageDoc.setFontSize(10);
+            pageDoc.setFont("times", "normal");
+            pageDoc.setTextColor(0, 0, 0);
+            pageDoc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
+            pageDoc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
+            pageDoc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
+            pageDoc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
+
+            pageDoc.setFontSize(12);
+            pageDoc.setFont("times", "bold");
+            pageDoc.text("COTIZACIÓN", 200, 46, { align: "right" });
+            pageDoc.setFontSize(12);
+            pageDoc.text(`N° ${String(cot.id_cotizacion).padStart(7, '0')}`, 200, 54, { align: "right" });
+
+            // Línea divisora perfectamente centrada
+            pageDoc.setDrawColor(0, 0, 0);
+            pageDoc.line(10, 60, 200, 60);
+
+            pageDoc.setFontSize(10);
+            pageDoc.setFont("times", "normal");
+            pageDoc.text(`Cliente: ${cot.cliente_nombre}`, 10, 68);
+            pageDoc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
         };
 
         const drawTerms = (pageDoc, yPos) => {
+            pageDoc.setFontSize(9);
+            pageDoc.setTextColor(0, 0, 0);
+            pageDoc.setFont("times", "bold");
+            pageDoc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
             pageDoc.setFontSize(8);
-            pageDoc.setTextColor(100, 100, 100);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("TÉRMINOS Y CONDICIONES:", 20, yPos);
-            pageDoc.setFontSize(7);
-            pageDoc.setFont("helvetica", "normal");
-            pageDoc.text("1. Los precios están sujetos a cambios sin previo aviso.", 20, yPos + 5);
-            pageDoc.text("2. Esta cotización tiene una validez de 15 días calendario.", 20, yPos + 9);
-            pageDoc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 20, yPos + 13);
-            pageDoc.text("4. Favor confirmar existencias antes de realizar su pago.", 20, yPos + 17);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("¡ES UN PLACER SERVIRLE!", 20, yPos + 25);
+            pageDoc.setFont("times", "normal");
+            pageDoc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
+            pageDoc.text("2. Esta cotización tiene una validez de 2 días calendario.", 10, yPos + 9);
+            pageDoc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
+            pageDoc.setFont("times", "bold");
+            pageDoc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
         };
 
         const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
@@ -127,17 +140,17 @@ const CotizacionesList = () => {
         ]);
 
         autoTable(doc, {
-            startY: 82,
+            startY: 75,
             head: [tableColumn],
             body: tableRows,
             theme: 'plain',
             headStyles: {
-                fillColor: [114, 133, 165],
-                textColor: [255, 255, 255],
+                fillColor: [180, 180, 180],
+                textColor: [0, 0, 0], // Negro sobre Gris
                 fontStyle: 'bold',
                 halign: 'center',
                 lineWidth: 0.5,
-                lineColor: [255, 255, 255]
+                lineColor: [255, 255, 255] // Vuelta al blanco original para las lineas
             },
             columnStyles: {
                 0: { halign: 'center', cellWidth: 25 },
@@ -146,8 +159,8 @@ const CotizacionesList = () => {
                 3: { halign: 'right', cellWidth: 35 },
                 4: { halign: 'right', cellWidth: 30 }
             },
-            styles: { fontSize: 9, cellPadding: 2, minCellHeight: 6, textColor: [50, 50, 50] },
-            margin: { left: 20, right: 20, bottom: 95, top: 80 },
+            styles: { font: 'times', fontSize: 11, cellPadding: 2, minCellHeight: 6, textColor: [0, 0, 0] },
+            margin: { left: 10, right: 10, bottom: 95, top: 78 },
             didDrawPage: (data) => {
                 drawHeader(doc);
                 drawTerms(doc, pageHeight - 80);
@@ -165,10 +178,10 @@ const CotizacionesList = () => {
         const subtotal = parseFloat(cot.total);
         const gravado15 = subtotal / 1.15;
         const isv15 = subtotal - gravado15;
-        const totalX = 130;
-        const valueX = 190;
+        const totalX = 135; // Alineado
+        const valueX = 200; // Margen 10mm
 
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         doc.setTextColor(0, 0, 0);
         doc.text("Importe Exonerado:", totalX, totalsY + 5);
         doc.text("0.00", valueX, totalsY + 5, { align: "right" });
@@ -180,15 +193,15 @@ const CotizacionesList = () => {
         doc.text("0.00", valueX, totalsY + 26, { align: "right" });
         doc.text("I.S.V. 15%:", totalX, totalsY + 33);
         doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
-        doc.setFont("helvetica", "bold");
+        doc.setFont("times", "bold");
         doc.text("Total A Pagar L.", totalX, totalsY + 42);
         doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
 
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text("Firma: ________________________________________", 20, pageHeight - 20);
-        doc.text("¡Gracias por su Preferencia!", 190, pageHeight - 25, { align: "right" });
-        doc.text("La Cotización es un compromiso de precio por 15 días", 190, pageHeight - 20, { align: "right" });
+        doc.setFontSize(11);
+        doc.setFont("times", "normal");
+        doc.text("Firma: ________________________________________", 10, pageHeight - 20); // Margen 10mm
+        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
+        doc.text("La Cotización es un compromiso de precio por 15 días", 200, pageHeight - 20, { align: "right" });
 
         return doc;
     };
@@ -229,35 +242,40 @@ const CotizacionesList = () => {
     ];
 
     return (
-        <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ padding: isMobile ? '16px' : '40px', maxWidth: '1200px', margin: '0 auto' }}>
             {/* Header Section */}
-            <div style={{ marginBottom: '40px' }}>
-                <Title level={1} style={{ color: '#163269', marginBottom: '8px', borderBottom: '2px solid #163269', display: 'inline-block', paddingBottom: '4px' }}>
+            <div style={{ marginBottom: isMobile ? '24px' : '40px' }}>
+                <Title level={isMobile ? 2 : 1} style={{
+                    color: '#163269',
+                    marginBottom: '8px',
+                    borderBottom: '2px solid #163269',
+                    display: 'inline-block',
+                    paddingBottom: '4px'
+                }}>
                     Cotizaciones
                 </Title>
-                <div style={{ color: '#6b7280', fontSize: '1.1rem' }}>
+                <div style={{ color: '#6b7280', fontSize: isMobile ? '1rem' : '1.1rem' }}>
                     Gestiona y crea cotizaciones para tus clientes
                 </div>
             </div>
 
             {/* Content Section */}
-            <Row justify="space-between" align="middle" style={{ marginBottom: '24px' }}>
-                <Col>
-                    <Title level={3} style={{ color: '#4b5563', margin: 0 }}>Listado de cotizaciones</Title>
+            <Row justify="space-between" align="middle" style={{ marginBottom: '24px', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '16px' : '0' }}>
+                <Col style={{ width: isMobile ? '100%' : 'auto' }}>
+                    <Title level={isMobile ? 4 : 3} style={{ color: '#4b5563', margin: 0, textAlign: isMobile ? 'center' : 'left' }}>Listado de cotizaciones</Title>
                 </Col>
-                <Col>
+                <Col style={{ width: isMobile ? '100%' : 'auto' }}>
                     <Button
                         type="primary"
                         size="large"
+                        block={isMobile}
                         icon={<PlusOutlined />}
                         onClick={() => navigate('/admin/cotizaciones/nueva')}
                         style={{
                             backgroundColor: '#163269',
-                            borderRadius: '8px',
+                            borderRadius: '10px',
                             height: '45px',
-                            padding: '0 24px',
-                            fontSize: '1rem',
-                            fontWeight: '500'
+                            fontWeight: '600'
                         }}
                     >
                         Nueva cotización
@@ -272,68 +290,96 @@ const CotizacionesList = () => {
                             key={cot.id}
                             className="shadow-sm"
                             style={{
-                                borderRadius: '16px',
-                                border: '1px solid #f0f0f0',
-                                padding: '8px'
+                                borderRadius: '20px',
+                                border: 'none',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+                                marginBottom: '16px',
+                                background: 'white'
                             }}
-                            styles={{ body: { padding: '24px' } }}
+                            styles={{ body: { padding: isMobile ? '20px' : '24px' } }}
                         >
-                            <Row justify="space-between" align="middle">
-                                <Col span={14}>
-                                    <Title level={4} style={{ color: '#163269', marginBottom: '16px' }}>
-                                        {cot.cliente}
-                                    </Title>
-                                    <Space size={24} style={{ marginBottom: '12px' }} orientation="horizontal">
-                                        <Text style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Row gutter={[16, 16]} align="middle">
+                                <Col xs={24} md={17}>
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'flex-start',
+                                        marginBottom: '12px'
+                                    }}>
+                                        <Title level={isMobile ? 4 : 3} style={{ color: '#163269', margin: 0 }}>
+                                            {cot.cliente}
+                                        </Title>
+                                        {isMobile && (
+                                            <div style={{ color: '#163269', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                                                L. {cot.total.toLocaleString()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '12px' : '24px', marginBottom: '16px' }}>
+                                        <Text style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                                             <CalendarOutlined /> {cot.fecha}
                                         </Text>
-                                        <Text style={{ color: '#6b7280', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Text style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                                             <InboxOutlined /> {cot.count} productos
                                         </Text>
-                                    </Space>
-                                    <div style={{ color: '#9ca3af', fontSize: '0.95rem' }}>
+                                    </div>
+                                    <div style={{
+                                        background: '#f8fafc',
+                                        padding: '10px 14px',
+                                        borderRadius: '10px',
+                                        color: '#64748b',
+                                        fontSize: '13px',
+                                        fontStyle: 'italic'
+                                    }}>
                                         {cot.resumen}
                                     </div>
                                 </Col>
-                                <Col span={10} style={{ textAlign: 'right' }}>
-                                    <div style={{ marginBottom: '12px' }}>
-                                        <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>Total</div>
-                                        <div style={{ color: '#163269', fontSize: '2.5rem', fontWeight: 'bold' }}>
-                                            L. {cot.total.toLocaleString()}
+                                <Col xs={24} md={7} style={{ textAlign: isMobile ? 'left' : 'right' }}>
+                                    {!isMobile && (
+                                        <div style={{ marginBottom: '16px' }}>
+                                            <div style={{ color: '#64748b', fontSize: '12px', fontWeight: '500' }}>TOTAL COTIZADO</div>
+                                            <div style={{ color: '#163269', fontSize: '2rem', fontWeight: '800', lineHeight: 1 }}>
+                                                L. {cot.total.toLocaleString()}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <Space size="middle" orientation="horizontal">
+                                    )}
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '12px',
+                                        justifyContent: isMobile ? 'stretch' : 'flex-end',
+                                        marginTop: isMobile ? '16px' : '0'
+                                    }}>
                                         <Popconfirm
                                             title="¿Eliminar cotización?"
-                                            description="Esta acción no se puede deshacer."
                                             onConfirm={() => handleDelete(cot.id)}
-                                            okText="Sí, eliminar"
-                                            cancelText="Cancelar"
-                                            okButtonProps={{ danger: true }}
-                                            icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+                                            okText="Sí"
+                                            cancelText="No"
                                         >
                                             <Button
                                                 danger
                                                 icon={<DeleteOutlined />}
                                                 size="large"
-                                                style={{ borderRadius: '10px', height: '45px' }}
+                                                style={{ borderRadius: '12px', height: '42px', width: isMobile ? '60px' : '42px' }}
                                             />
                                         </Popconfirm>
                                         <Button
+                                            type="primary"
                                             icon={<EyeOutlined />}
                                             size="large"
                                             onClick={() => showDetails(cot.id)}
                                             style={{
-                                                borderRadius: '10px',
-                                                borderColor: '#163269',
-                                                color: '#163269',
-                                                height: '45px',
-                                                padding: '0 32px'
+                                                flex: isMobile ? 1 : 'none',
+                                                borderRadius: '12px',
+                                                backgroundColor: '#163269',
+                                                height: '42px',
+                                                padding: isMobile ? '0' : '0 24px',
+                                                fontWeight: '600',
+                                                fontSize: '14px'
                                             }}
                                         >
-                                            Ver detalle
+                                            Ver detalles
                                         </Button>
-                                    </Space>
+                                    </div>
                                 </Col>
                             </Row>
                         </Card>
@@ -369,36 +415,44 @@ const CotizacionesList = () => {
                         Imprimir
                     </Button>
                 ]}
-                width={850}
+                width={isMobile ? '100%' : 850}
                 centered
-                styles={{ body: { padding: '40px' } }}
+                styles={{
+                    body: { padding: isMobile ? '16px' : '40px' },
+                    header: { display: isMobile ? 'none' : 'block' }
+                }}
+                className="quotation-detail-modal"
             >
                 {selectedCotizacion && (
                     <div id="cotizacion-print-area">
                         {/* Header mimicking PDF */}
-                        <Row align="middle" style={{ marginBottom: '30px' }}>
-                            <Col span={6}>
-                                <img src={FerreteriaLogo} alt="Logo" style={{ width: '150px' }} />
-                            </Col>
-                            <Col span={12} style={{ textAlign: 'center' }}>
-                                <Title level={3} style={{ margin: 0, color: '#000' }}>INVERSIONES MERCANTILES VILLAMIL</Title>
-                                <Text style={{ display: 'block' }}>Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,</Text>
-                                <Text style={{ display: 'block' }}>Tres Cuadras Arriba del Centro de Salud</Text>
-                                <Text style={{ display: 'block' }}>R.T.N. 05011998149871  Tel. 95086231- 96096433</Text>
-                                <Text style={{ display: 'block' }}>Correo: ferrevillamil@gmail.com</Text>
-                            </Col>
-                            <Col span={6} style={{ textAlign: 'right' }}>
-                                <Title level={4} style={{ margin: 0, color: '#000' }}>COTIZACIÓN</Title>
-                                <Title level={5} style={{ margin: 0, color: '#000' }}>N° {String(selectedCotizacion.id_cotizacion).padStart(7, '0')}</Title>
-                            </Col>
-                        </Row>
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: isMobile ? 'column' : 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '30px',
+                            gap: '20px',
+                            textAlign: 'center'
+                        }}>
+                            <img src={FerreteriaLogo} alt="Logo" style={{ width: isMobile ? '100px' : '150px' }} />
+                            <div style={{ flex: 1 }}>
+                                <Title level={isMobile ? 5 : 3} style={{ margin: 0, color: '#000' }}>INVERSIONES MERCANTILES VILLAMIL</Title>
+                                <Text style={{ display: 'block', fontSize: '12px' }}>Colonia Pinto Calle Principal Naco Cortes. SPS</Text>
+                                <Text style={{ display: 'block', fontSize: '12px' }}>R.T.N. 05011998149871  Tel. 95086231</Text>
+                            </div>
+                            <div style={{ textAlign: isMobile ? 'center' : 'right' }}>
+                                <Title level={5} style={{ margin: 0, color: '#000' }}>COTIZACIÓN</Title>
+                                <Text strong>N° {String(selectedCotizacion.id_cotizacion).padStart(7, '0')}</Text>
+                            </div>
+                        </div>
 
-                        <Row gutter={24} style={{ marginBottom: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-                            <Col span={12}>
+                        <Row gutter={isMobile ? [0, 12] : 24} style={{ marginBottom: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                            <Col xs={24} md={12}>
                                 <Text strong>Cliente: </Text>
                                 <Text>{selectedCotizacion.cliente_nombre}</Text>
                             </Col>
-                            <Col span={12} style={{ textAlign: 'right' }}>
+                            <Col xs={24} md={12} style={{ textAlign: isMobile ? 'left' : 'right' }}>
                                 <Text strong>Fecha: </Text>
                                 <Text>{new Date(selectedCotizacion.fecha_cotizacion).toLocaleDateString()}</Text>
                             </Col>
@@ -407,15 +461,8 @@ const CotizacionesList = () => {
                         <Table
                             dataSource={selectedCotizacion.Detalles}
                             columns={[
-                                { title: 'Cant.', dataIndex: 'cantidad', key: 'qty', width: 80, align: 'center' },
+                                { title: 'Cant.', dataIndex: 'cantidad', key: 'qty', width: 60, align: 'center' },
                                 { title: 'Descripción', dataIndex: ['Articulo', 'nombre'], key: 'desc' },
-                                {
-                                    title: 'Precio Unit.',
-                                    dataIndex: 'precio_unitario',
-                                    key: 'price',
-                                    align: 'right',
-                                    render: (val) => `L. ${parseFloat(val).toFixed(2)}`
-                                },
                                 {
                                     title: 'Total',
                                     dataIndex: 'subtotal',
@@ -426,41 +473,36 @@ const CotizacionesList = () => {
                             ]}
                             pagination={false}
                             rowKey="id_detalle_cotizacion"
-                            className="custom-detail-table"
-                            style={{ marginBottom: '30px' }}
+                            size="small"
+                            style={{ marginBottom: '20px' }}
                         />
 
-                        <Row gutter={40}>
-                            <Col span={14}>
-                                <div style={{ background: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                        <Row gutter={[20, 20]}>
+                            <Col xs={24} md={14}>
+                                <div style={{ background: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
                                     <Text strong style={{ fontSize: '0.8rem', color: '#6b7280', display: 'block', marginBottom: '8px' }}>
                                         TÉRMINOS Y CONDICIONES:
                                     </Text>
                                     <ul style={{ fontSize: '0.75rem', color: '#6b7280', paddingLeft: '15px', margin: 0 }}>
-                                        <li>Los precios están sujetos a cambios sin previo aviso.</li>
-                                        <li>Esta cotización tiene una validez de 15 días calendario.</li>
-                                        <li>La entrega de materiales está sujeta a disponibilidad de inventario.</li>
-                                        <li>Favor confirmar existencias antes de realizar su pago.</li>
+                                        <li>Precios sujetos a cambios sin previo aviso.</li>
+                                        <li>Vigencia: 15 días calendario.</li>
                                     </ul>
-                                    <Text strong style={{ fontSize: '0.8rem', color: '#163269', display: 'block', marginTop: '12px' }}>
-                                        ¡ES UN PLACER SERVIRLE!
-                                    </Text>
                                 </div>
                             </Col>
-                            <Col span={10}>
+                            <Col xs={24} md={10}>
                                 <div style={{ textAlign: 'right' }}>
-                                    <Row justify="space-between" style={{ marginBottom: '4px' }}>
+                                    <Row justify="space-between">
                                         <Text>Subtotal:</Text>
                                         <Text>L. {(parseFloat(selectedCotizacion.total) / 1.15).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                                     </Row>
-                                    <Row justify="space-between" style={{ marginBottom: '4px' }}>
+                                    <Row justify="space-between">
                                         <Text>I.S.V. (15%):</Text>
                                         <Text>L. {(parseFloat(selectedCotizacion.total) - (parseFloat(selectedCotizacion.total) / 1.15)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                                     </Row>
-                                    <Divider style={{ margin: '12px 0' }} />
+                                    <Divider style={{ margin: '8px 0' }} />
                                     <Row justify="space-between">
-                                        <Text strong style={{ fontSize: '1.2rem' }}>Total:</Text>
-                                        <Text strong style={{ fontSize: '1.5rem', color: '#163269' }}>
+                                        <Text strong style={{ fontSize: isMobile ? '1rem' : '1.2rem' }}>Total:</Text>
+                                        <Text strong style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', color: '#163269' }}>
                                             L. {parseFloat(selectedCotizacion.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </Text>
                                     </Row>
@@ -468,16 +510,21 @@ const CotizacionesList = () => {
                             </Col>
                         </Row>
 
-                        <div style={{ marginTop: '50px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-                            <Row justify="space-between" align="bottom">
-                                <Col span={12}>
-                                    <div style={{ borderTop: '1px solid #000', width: '250px', marginTop: '40px', textAlign: 'center' }}>
-                                        <Text>Firma Autorizada</Text>
+                        <div style={{ marginTop: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                            <Row justify="space-between" align="bottom" gutter={[0, 30]}>
+                                <Col xs={24} md={12}>
+                                    <div style={{
+                                        borderTop: '1px solid #000',
+                                        width: isMobile ? '100%' : '250px',
+                                        marginTop: isMobile ? '20px' : '40px',
+                                        textAlign: 'center'
+                                    }}>
+                                        <Text style={{ fontSize: '12px' }}>Firma Autorizada</Text>
                                     </div>
                                 </Col>
-                                <Col span={12} style={{ textAlign: 'right' }}>
-                                    <Text strong style={{ color: '#163269', display: 'block' }}>¡Gracias por su Preferencia!</Text>
-                                    <Text type="secondary" style={{ fontSize: '0.8rem' }}>La Cotización es un compromiso de precio por 15 días</Text>
+                                <Col xs={24} md={12} style={{ textAlign: isMobile ? 'center' : 'right' }}>
+                                    <Text strong style={{ color: '#163269', display: 'block', fontSize: '14px' }}>¡Gracias por su Preferencia!</Text>
+                                    <Text type="secondary" style={{ fontSize: '11px' }}>Cotización válida por 15 días</Text>
                                 </Col>
                             </Row>
                         </div>

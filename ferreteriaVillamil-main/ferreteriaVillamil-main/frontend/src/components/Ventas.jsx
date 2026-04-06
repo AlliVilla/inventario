@@ -46,13 +46,17 @@ const Ventas = () => {
         fetchArticulos();
         return () => window.removeEventListener('resize', handleResize);
     }, []);
-
     const fetchArticulos = async (searchQuery = '') => {
         try {
-            const params = searchQuery ? { search: searchQuery, limit: 100 } : { limit: 50 };
+            const token = localStorage.getItem('token');
+            const params = { limit: 2000 };
+            if (searchQuery) params.search = searchQuery;
             const response = await axios.get(
                 `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/articulos/list/active`,
-                { params }
+                { 
+                    params,
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }
             );
             if (response.data && response.data.data) {
                 setArticulos(response.data.data);

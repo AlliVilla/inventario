@@ -181,9 +181,13 @@ const getAllItems = async (request, response) => {
 
 const getAllActiveItems = async (request, response) => {
     try {
-        const { search, limit = 100 } = request.query;
+        const { search, limit = 2000 } = request.query;
 
-        const where = { estado: "Disponible" };
+        const where = { 
+            estado: { 
+                [Op.or]: ["Disponible", "disponible", "Activo", "activo"] 
+            } 
+        };
 
         // Add search filter if provided
         if (search && search.trim()) {

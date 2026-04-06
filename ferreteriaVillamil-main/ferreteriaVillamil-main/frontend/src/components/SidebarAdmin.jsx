@@ -258,8 +258,10 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 relative">
                 {userData?.foto_perfil ? (
-                  <img
-                    src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'}/${userData.foto_perfil.startsWith('/') ? userData.foto_perfil.slice(1) : userData.foto_perfil}`}
+                    <img
+                      src={userData.foto_perfil.startsWith('http') 
+                        ? userData.foto_perfil 
+                        : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000'}/${userData.foto_perfil.startsWith('/') ? userData.foto_perfil.slice(1) : userData.foto_perfil}`}
                     alt="Profile"
                     className="w-full h-full object-cover rounded-full cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => navigate('/admin/perfil')}

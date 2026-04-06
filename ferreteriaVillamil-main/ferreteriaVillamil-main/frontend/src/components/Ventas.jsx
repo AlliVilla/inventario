@@ -37,11 +37,14 @@ const Ventas = () => {
     const [invoiceFormat, setInvoiceFormat] = useState('letter');
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [confirmModal, setConfirmModal] = useState(false);
-
-    const usuario = JSON.parse(localStorage.getItem('usuario'));
+    const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'cart'
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
     useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
         fetchArticulos();
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     const fetchArticulos = async (searchQuery = '') => {
@@ -324,38 +327,100 @@ const Ventas = () => {
         <div style={{
             minHeight: '100vh',
             background: 'linear-gradient(to bottom, #f8fafc, #e2e8f0)',
-            padding: '24px'
+            padding: isMobile ? '12px' : '24px'
         }}>
             <InvoiceStyles />
             <div style={{
                 marginBottom: '24px',
                 background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-                padding: '28px 36px',
+                padding: isMobile ? '20px' : '28px 36px',
                 borderRadius: '20px',
                 boxShadow: '0 10px 40px rgba(30, 58, 138, 0.2)'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '16px', 
+                    flexDirection: isMobile ? 'column' : 'row', 
+                    textAlign: isMobile ? 'center' : 'left' 
+                }}>
                     <div style={{
                         background: 'rgba(255,255,255,0.2)',
                         padding: '14px',
                         borderRadius: '14px',
                         backdropFilter: 'blur(10px)'
                     }}>
-                        <ShoppingCartOutlined style={{ fontSize: '36px', color: 'white' }} />
+                        <ShoppingCartOutlined style={{ fontSize: isMobile ? '28px' : '36px', color: 'white' }} />
                     </div>
                     <div>
-                        <h1 style={{ margin: 0, color: 'white', fontSize: '32px', fontWeight: '700' }}>
+                        <h1 style={{ margin: 0, color: 'white', fontSize: isMobile ? '24px' : '32px', fontWeight: '700' }}>
                             Punto de Venta
                         </h1>
-                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: '16px' }}>
+                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.9)', fontSize: isMobile ? '14px' : '16px' }}>
                             Sistema de ventas rápido y eficiente
                         </p>
                     </div>
                 </div>
             </div>
 
-            <Row gutter={24} style={{ height: 'calc(100vh - 180px)' }}>
-                <Col span={13} style={{ height: '100%' }}>
+            {/* Selector de Pestañas para Móvil */}
+            {isMobile && (
+                <div style={{ 
+                    display: 'flex', 
+                    background: 'white', 
+                    borderRadius: '14px', 
+                    padding: '6px', 
+                    marginBottom: '20px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                    border: '1px solid #e2e8f0'
+                }}>
+                    <button
+                        onClick={() => setActiveTab('inventory')}
+                        style={{
+                            flex: 1,
+                            padding: '12px',
+                            border: 'none',
+                            borderRadius: '10px',
+                            background: activeTab === 'inventory' ? 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)' : 'transparent',
+                            color: activeTab === 'inventory' ? 'white' : '#64748b',
+                            fontWeight: '700',
+                            fontSize: '14px',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <SearchOutlined /> Inventario
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('cart')}
+                        style={{
+                            flex: 1,
+                            padding: '12px',
+                            border: 'none',
+                            borderRadius: '10px',
+                            background: activeTab === 'cart' ? 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)' : 'transparent',
+                            color: activeTab === 'cart' ? 'white' : '#64748b',
+                            fontWeight: '700',
+                            fontSize: '14px',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px'
+                        }}
+                    >
+                        <ShoppingCartOutlined /> Carrito 
+                        {cart.length > 0 && <Badge count={cart.length} size="small" style={{ backgroundColor: activeTab === 'cart' ? '#ef4444' : '#1e3a8a', marginLeft: '4px' }} />}
+                    </button>
+                </div>
+            )}
+
+            <Row gutter={isMobile ? [0, 24] : 24} style={{ height: isMobile ? 'auto' : 'calc(100vh - 180px)' }}>
+                {(!isMobile || activeTab === 'inventory') && (
+                    <Col xs={24} md={13} style={{ height: isMobile ? 'auto' : '100%' }}>
                     <Card
                         style={{
                             height: '100%',
@@ -382,9 +447,9 @@ const Ventas = () => {
                             }}
                         />
 
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto' }}>
                             <List
-                                grid={{ gutter: 16, column: 2 }}
+                                grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 2, xxl: 2 }}
                                 dataSource={filteredArticulos}
                                 renderItem={item => (
                                     <List.Item>
@@ -410,14 +475,16 @@ const Ventas = () => {
                                             cover={
                                                 <div
                                                     style={{
-                                                        height: 160,
+                                                        height: isMobile ? '140px' : '160px',
+                                                        width: '100%',
                                                         background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
-                                                        padding: '16px',
+                                                        padding: '12px',
                                                         position: 'relative',
-                                                        cursor: 'pointer'
+                                                        cursor: 'pointer',
+                                                        overflow: 'hidden'
                                                     }}
                                                     onClick={() => {
                                                         setSelectedProduct(item);
@@ -425,28 +492,11 @@ const Ventas = () => {
                                                     }}
                                                 >
                                                     {item.cantidad_existencia <= 0 && (
-                                                        <Badge.Ribbon text="AGOTADO" color="red" style={{ fontSize: '11px', fontWeight: '700' }} />
+                                                        <Badge.Ribbon text="AGOTADO" color="red" style={{ fontSize: '10px', fontWeight: '700' }} />
                                                     )}
                                                     {item.cantidad_existencia > 0 && item.cantidad_existencia <= 5 && (
-                                                        <Badge.Ribbon text="BAJO STOCK" color="orange" style={{ fontSize: '11px', fontWeight: '700' }} />
+                                                        <Badge.Ribbon text="BAJO STOCK" color="orange" style={{ fontSize: '10px', fontWeight: '700' }} />
                                                     )}
-
-                                                    <div style={{
-                                                        position: 'absolute',
-                                                        top: '12px',
-                                                        left: '12px',
-                                                        background: 'rgba(59, 130, 246, 0.9)',
-                                                        color: 'white',
-                                                        padding: '6px 10px',
-                                                        borderRadius: '8px',
-                                                        fontSize: '12px',
-                                                        fontWeight: '600',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px'
-                                                    }}>
-                                                        <EyeOutlined /> Ver
-                                                    </div>
 
                                                     {item.foto_url ? (
                                                         <img
@@ -459,7 +509,7 @@ const Ventas = () => {
                                                             }}
                                                         />
                                                     ) : (
-                                                        <ShoppingCartOutlined style={{ fontSize: '48px', color: '#cbd5e1' }} />
+                                                        <ShoppingCartOutlined style={{ fontSize: '42px', color: '#cbd5e1' }} />
                                                     )}
                                                 </div>
                                             }
@@ -523,8 +573,10 @@ const Ventas = () => {
                         </div>
                     </Card>
                 </Col>
+                )}
 
-                <Col span={11} style={{ height: '100%' }}>
+                {(!isMobile || activeTab === 'cart') && (
+                    <Col xs={24} md={11} id="cart-section" style={{ height: isMobile ? 'auto' : '100%' }}>
                     <Card
                         style={{
                             height: '100%',
@@ -744,6 +796,7 @@ const Ventas = () => {
                         </div>
                     </Card>
                 </Col>
+                )}
             </Row>
 
             <Modal
@@ -751,39 +804,39 @@ const Ventas = () => {
                 open={confirmModal}
                 onCancel={() => setConfirmModal(false)}
                 footer={[
-                    <Button 
-                        key="back" 
-                        onClick={() => setConfirmModal(false)}
-                        style={{ 
-                            height: '45px', 
-                            width: '180px', 
-                            borderRadius: '12px', 
-                            fontWeight: '600',
-                            border: '1px solid #d9d9d9',
-                            color: '#555' 
-                        }}
-                    >
-                        Cancelar
-                    </Button>,
-                    <Button 
-                        key="submit" 
-                        type="primary" 
-                        loading={loading} 
-                        onClick={handleCheckout}
-                        style={{ 
-                            height: '45px', 
-                            width: '180px', 
-                            borderRadius: '12px', 
-                            fontWeight: '700',
-                            background: '#059669',
-                            border: 'none'
-                        }}
-                    >
-                        Confirmar
-                    </Button>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', width: '100%' }}>
+                        <Button 
+                            key="back" 
+                            onClick={() => setConfirmModal(false)}
+                            style={{ 
+                                height: '45px', 
+                                flex: 1, 
+                                borderRadius: '12px', 
+                                fontWeight: '600'
+                            }}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            key="submit" 
+                            type="primary" 
+                            loading={loading} 
+                            onClick={handleCheckout}
+                            style={{ 
+                                height: '45px', 
+                                flex: 1, 
+                                borderRadius: '12px', 
+                                fontWeight: '700',
+                                background: '#059669',
+                                border: 'none'
+                            }}
+                        >
+                            Confirmar
+                        </Button>
+                    </div>
                 ]}
                 centered
-                width={480}
+                width={isMobile ? '95%' : 480}
                 styles={{ 
                     content: { borderRadius: '16px' },
                     header: { borderBottom: '1px solid #f0f0f0', paddingBottom: '16px' },
@@ -841,16 +894,16 @@ const Ventas = () => {
                 open={previewModal}
                 onCancel={() => setPreviewModal(false)}
                 footer={null}
-                width={650}
+                width={isMobile ? '95%' : 650}
                 centered
                 style={{ borderRadius: '20px' }}
-                styles={{ body: { padding: '24px' } }}
+                styles={{ body: { padding: isMobile ? '16px' : '24px' } }}
             >
                 {selectedProduct && (
                     <div>
                         <div style={{
                             width: '100%',
-                            height: '400px',
+                            height: isMobile ? '250px' : '400px',
                             background: 'linear-gradient(to bottom, #f8fafc, #f1f5f9)',
                             borderRadius: '16px',
                             display: 'flex',
@@ -949,37 +1002,43 @@ const Ventas = () => {
                 open={successModal}
                 onCancel={resetSale}
                 footer={null}
-                width={850}
+                width={isMobile ? '98%' : 850}
                 centered
                 closable={true}
                 className="invoice-modal-full"
+                styles={{ body: { padding: isMobile ? '10px' : '20px' } }}
             >
-                <div className="invoice-preview-container">
-                    <Row align="middle" style={{ marginBottom: '30px' }}>
-                        <Col span={6}>
-                            <img src={logo} alt="Logo" style={{ width: '150px' }} />
-                        </Col>
-                        <Col span={12} style={{ textAlign: 'center' }}>
-                            <Title level={3} style={{ margin: 0, color: '#000' }}>INVERSIONES MERCANTILES VILLAMIL</Title>
-                            <Text style={{ display: 'block' }}>Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,</Text>
-                            <Text style={{ display: 'block' }}>Tres Cuadras Arriba del Centro de Salud</Text>
-                            <Text style={{ display: 'block' }}>R.T.N. 05011998149871  Tel. 95086231- 96096433</Text>
-                            <Text style={{ display: 'block' }}>Correo: ferrevillamil@gmail.com</Text>
-                        </Col>
-                        <Col span={6} style={{ textAlign: 'right' }}>
-                            <Title level={4} style={{ margin: 0, color: '#000' }}>FACTURA DE VENTA</Title>
-                            <Title level={5} style={{ margin: 0, color: '#000' }}>N° FAC-{String(lastSaleData?.id_venta).padStart(7, '0')}</Title>
-                        </Col>
-                    </Row>
+                <div className="invoice-preview-container" style={{ padding: isMobile ? '5px' : '0' }}>
+                    {/* Header Factura Responsivo */}
+                    <div style={{ 
+                        display: 'flex', 
+                        flexDirection: isMobile ? 'column' : 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '30px',
+                        gap: '20px',
+                        textAlign: isMobile ? 'center' : 'left'
+                    }}>
+                        <img src={logo} alt="Logo" style={{ width: '120px' }} />
+                        <div style={{ flex: 1, textAlign: 'center' }}>
+                            <Title level={isMobile ? 4 : 3} style={{ margin: 0, color: '#000' }}>INVERSIONES MERCANTILES VILLAMIL</Title>
+                            <Text style={{ display: 'block', fontSize: '12px' }}>Colonia Pinto Calle Principal Naco Cortes. SPS</Text>
+                            <Text style={{ display: 'block', fontSize: '12px' }}>R.T.N. 05011998149871  Tel. 95086231- 96096433</Text>
+                        </div>
+                        <div style={{ textAlign: isMobile ? 'center' : 'right' }}>
+                            <Title level={4} style={{ margin: 0, color: '#000', fontSize: '16px' }}>FACTURA DE VENTA</Title>
+                            <Title level={5} style={{ margin: 0, color: '#000', fontSize: '14px' }}>N° FAC-{String(lastSaleData?.id_venta).padStart(7, '0')}</Title>
+                        </div>
+                    </div>
 
-                    <Row gutter={24} style={{ marginBottom: '30px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
-                        <Col span={12}>
+                    <Row gutter={24} style={{ marginBottom: '20px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+                        <Col xs={24} sm={12}>
                             <Text strong>Cliente: </Text>
                             <Text>{clientName || "Consumidor Final"}</Text>
                         </Col>
-                        <Col span={12} style={{ textAlign: 'right' }}>
+                        <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'left' : 'right', marginTop: isMobile ? '10px' : '0' }}>
                             <Text strong>Fecha: </Text>
-                            <Text>{new Date().toLocaleDateString()}</Text>
+                            <Text>{new Date(lastSaleData?.fecha || new Date()).toLocaleDateString()}</Text>
                         </Col>
                     </Row>
 
@@ -1009,9 +1068,9 @@ const Ventas = () => {
                         style={{ marginBottom: '30px' }}
                     />
 
-                    <Row gutter={40}>
-                        <Col span={14}>
-                            <div style={{ background: '#f9fafb', padding: '20px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                    <Row gutter={[24, 24]}>
+                        <Col xs={24} md={14}>
+                            <div style={{ background: '#f9fafb', padding: '15px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
                                 <Text strong style={{ fontSize: '0.8rem', color: '#6b7280', display: 'block', marginBottom: '8px' }}>
                                     TÉRMINOS Y CONDICIONES:
                                 </Text>
@@ -1019,14 +1078,10 @@ const Ventas = () => {
                                     <li>Los precios están sujetos a cambios sin previo aviso.</li>
                                     <li>Esta cotización tiene una validez de 15 días calendario.</li>
                                     <li>La entrega de materiales está sujeta a disponibilidad de inventario.</li>
-                                    <li>Favor confirmar existencias antes de realizar su pago.</li>
                                 </ul>
-                                <Text strong style={{ fontSize: '0.8rem', color: '#163269', display: 'block', marginTop: '12px' }}>
-                                    ¡ES UN PLACER SERVIRLE!
-                                </Text>
                             </div>
                         </Col>
-                        <Col span={10}>
+                        <Col xs={24} md={10}>
                             <div style={{ textAlign: 'right' }}>
                                 <Row justify="space-between" style={{ marginBottom: '4px' }}>
                                     <Text>Importe Gravado 15%:</Text>
@@ -1038,8 +1093,8 @@ const Ventas = () => {
                                 </Row>
                                 <Divider style={{ margin: '12px 0' }} />
                                 <Row justify="space-between">
-                                    <Text strong style={{ fontSize: '1.2rem' }}>Total A Pagar:</Text>
-                                    <Text strong style={{ fontSize: '1.5rem', color: '#163269' }}>
+                                    <Text strong style={{ fontSize: isMobile ? '1rem' : '1.2rem' }}>Total A Pagar:</Text>
+                                    <Text strong style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', color: '#163269' }}>
                                         L. {parseFloat(lastSaleData?.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Text>
                                 </Row>
@@ -1065,26 +1120,28 @@ const Ventas = () => {
                 <div className="no-print" style={{ 
                     marginTop: '20px', 
                     display: 'flex', 
-                    gap: '12px', 
-                    justifyContent: 'flex-end', 
+                    flexWrap: 'wrap',
+                    gap: '10px', 
+                    justifyContent: 'center', 
                     borderTop: '1px solid #eee', 
                     paddingTop: '20px' 
                 }}>
-                    <Button size="large" onClick={resetSale}>
+                    <Button size="large" onClick={resetSale} style={{ flex: isMobile ? '1 0 40%' : 'none' }}>
                         Cerrar
                     </Button>
                     <Button
                         size="large"
                         icon={<FilePdfOutlined />}
                         onClick={handleDownload}
+                        style={{ flex: isMobile ? '1 0 40%' : 'none' }}
                     >
-                        Descargar PDF
+                        PDF
                     </Button>
                     <Button
                         type="primary"
                         size="large"
                         icon={<PrinterOutlined />}
-                        style={{ background: '#163269' }}
+                        style={{ background: '#163269', flex: isMobile ? '1 0 40%' : 'none' }}
                         onClick={handlePrint}
                     >
                         Imprimir
@@ -1093,10 +1150,10 @@ const Ventas = () => {
                         type="primary"
                         size="large"
                         icon={<PlusOutlined />}
-                        style={{ background: '#059669' }}
+                        style={{ background: '#059669', flex: isMobile ? '1 0 40%' : 'none' }}
                         onClick={resetSale}
                     >
-                        Nueva Venta
+                        Nueva
                     </Button>
                 </div>
             </Modal>

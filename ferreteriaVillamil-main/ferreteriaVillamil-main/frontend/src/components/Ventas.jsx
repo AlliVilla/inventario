@@ -283,11 +283,14 @@ const Ventas = () => {
             return;
         }
 
+        const userStr = localStorage.getItem('user');
+        const loggedUser = userStr ? JSON.parse(userStr) : null;
+
         setLoading(true);
         try {
             const saleData = {
                 cliente_nombre: clientName || "Consumidor Final",
-                id_usuario_vendedor: usuario?.id_usuario,
+                id_usuario_vendedor: loggedUser?.id_usuario || loggedUser?.id || 1, // Fallback al 1 si no hay usuario
                 total: getTotal(),
                 items: cart.map(item => ({
                     id_articulo: item.id_articulo,
@@ -854,8 +857,8 @@ const Ventas = () => {
                             {cart.length} {cart.length === 1 ? 'Producto' : 'Productos'}
                         </Text>
                         <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                            {cart.map(item => (
-                                <div key={item.id_articulo} style={{ marginBottom: '12px' }}>
+                            {cart.map((item, idx) => (
+                                <div key={item.id_articulo || idx} style={{ marginBottom: '12px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                         <Text strong style={{ fontSize: '14px', color: '#333' }}>{item.nombre}</Text>
                                         <Text style={{ fontSize: '14px' }}>L. {parseFloat(item.subtotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</Text>

@@ -1,31 +1,35 @@
-const { Sequelize } = require('sequelize');
-const config = require('./config/config.js');
-const env = process.env.NODE_ENV || 'development';
-const dbConfig = config[env];
+require("dotenv").config();
+const { Sequelize } = require("sequelize");
 
-console.log(`Trying to connect to ${dbConfig.dialect}://${dbConfig.username}:***@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
-
-const sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, {
-    host: dbConfig.host,
-    dialect: dbConfig.dialect,
-    port: dbConfig.port,
-    logging: console.log
+// Crear conexión usando la URI de Supabase
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: "postgres",
+    logging: console.log,
+    dialectOptions: {
+        ssl: {
+            require: true,
+            rejectUnauthorized: false,
+        },
+    },
 });
 
+// Probar conexión
 async function testConnection() {
     try {
         await sequelize.authenticate();
-        console.log('Connection has been established successfully.');
+        console.log("✅ Conectado a la DB");
 
-        // Try to query users table
-        const [results, metadata] = await sequelize.query("SELECT count(*) FROM \"Usuarios\"");
-        console.log('Users count:', results);
+        // Prueba real a una tabla
+        const [results] = await sequelize.query('SELECT count(*) FROM "Articulo"');
+        console.log("📊 Articulos count:", results);
 
     } catch (error) {
-        console.error('Unable to connect to the database:', error);
-    } finally {
-        await sequelize.close();
+        console.error("❌ Error de conexión:", error);
     }
 }
 
+// Ejecutar prueba
 testConnection();
+
+// Exportar conexión para el resto del backend
+module.exports = sequelize;

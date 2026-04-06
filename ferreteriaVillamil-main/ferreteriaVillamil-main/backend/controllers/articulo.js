@@ -24,9 +24,9 @@ const nuevoArticulo = async (request, response) => {
     try {
         const data = request.body;
 
-        // Handle file upload
+        // File upload handles by middleware setting data.foto_url
         if (request.file) {
-            data.foto_url = `/uploads/${request.file.filename}`;
+            // data.foto_url is already set by middleware
         }
 
         if (!checkForNull(data, response)) return;
@@ -64,10 +64,9 @@ const editArticulo = async (request, response) => {
         console.log('request.body:', data);
         console.log('request.file:', request.file);
 
-        // Handle file upload
+        // File upload handled by middleware
         if (request.file) {
-            data.foto_url = `/uploads/${request.file.filename}`;
-            console.log('=== BACKEND: Archivo detectado, foto_url actualizado a:', data.foto_url);
+            console.log('=== BACKEND: Archivo detectado, foto_url ya viene de Supabase');
         }
 
         // Handle photo deletion (empty string means delete)

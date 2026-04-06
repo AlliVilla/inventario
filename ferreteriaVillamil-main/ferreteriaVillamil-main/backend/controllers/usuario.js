@@ -45,9 +45,9 @@ const updateUsuario = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
     
-    // Handle file upload
+    // Handle file upload (photo_perfil is already set in req.body by middleware)
     if (req.file) {
-      req.body.foto_perfil = `/uploads/${req.file.filename}`;
+      console.log('=== Foto de perfil subida a Supabase');
     }
     
     // Handle photo deletion (empty string means delete)

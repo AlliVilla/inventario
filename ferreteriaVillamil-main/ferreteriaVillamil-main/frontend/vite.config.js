@@ -14,7 +14,9 @@ export default defineConfig({
       // Añade esta línea para permitir el host de Cloudflare
     allowedHosts: [
       'attachment-topic-element-minutes.trycloudflare.com',
-      '.trycloudflare.com' // Permite cualquier subdominio de Cloudflare
+      '.trycloudflare.com',
+      'inventario-1-7vj7.onrender.com',
+      '.onrender.com'
     ]
   },
 });

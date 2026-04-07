@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, DatePicker, Row, Col, Typography, Statistic, message, Tag, Popconfirm, Button } from 'antd';
-import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logo from '../assets/LogoFerreteriaVillamil.png';
+import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined, CloseCircleOutlined, PrinterOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import moment from 'moment';
 
@@ -149,6 +152,17 @@ const ReportesVentas = () => {
         }
     };
 
+    const handleRemoveItem = async (id_venta, id_detalle) => {
+        try {
+            await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/ventas/removeItem/${id_venta}/${id_detalle}`);
+            message.success("Producto devuelto al stock de manera exitosa");
+            fetchData();
+        } catch (error) {
+            console.error("Error al devolver producto:", error);
+            message.error(error.response?.data?.message || "Error al devolver el producto");
+        }
+    };
+
     const handleDateFilter = (dates) => {
         setDateRange(dates);
         if (!dates) {
@@ -177,6 +191,161 @@ const ReportesVentas = () => {
         console.log("Resultados filtro:", filtered.length);
         setFilteredVentas(filtered);
         calculateStats(filtered, articulos);
+    };
+
+    const handlePrintVenta = (record) => {
+        const doc = new jsPDF();
+        const date = moment(record.fecha_normalizada).format('DD/MM/YYYY');
+        const pageHeight = doc.internal.pageSize.height;
+        const footerHeight = 35; 
+        const totalsHeight = 50; 
+        const reservedSpace = totalsHeight + footerHeight + 10;
+        const totalsY = pageHeight - reservedSpace;
+
+        const drawHeader = () => {
+            doc.addImage(logo, 'PNG', 10, 7, 65, 43); 
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("times", "bold");
+            doc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
+
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
+            doc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
+            doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
+            doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
+
+            doc.setFontSize(14);
+            doc.setFont("times", "bold");
+            doc.text("PROFORMA", 200, 46, { align: "right" });
+            doc.setFontSize(12);
+            doc.text(`N° PROF-${String(record.id_venta || record.id_pedido).padStart(7, '0')}`, 200, 54, { align: "right" });
+
+            doc.setDrawColor(0, 0, 0);
+            doc.line(10, 60, 200, 60);
+
+            doc.setFontSize(8);
+            doc.setFont("times", "italic");
+            doc.setTextColor(80, 80, 80);
+            doc.text("Este documento es generado únicamente con fines informativos y de control interno.", 105, 65, { align: "center" });
+            doc.text("No constituye una factura fiscal válida, ni puede ser utilizado para efectos tributarios ante autoridades fiscales.", 105, 69, { align: "center" });
+            doc.text("La factura legal correspondiente debe ser emitida a través del sistema autorizado conforme a la normativa vigente.", 105, 73, { align: "center" });
+
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Cliente: ${record.cliente_nombre || "Consumidor Final"}`, 10, 80);
+            doc.text(`Fecha:  ${date}`, 200, 80, { align: "right" });
+        };
+
+        const drawTerms = (yPos) => {
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("times", "bold");
+            doc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
+            doc.setFontSize(8);
+            doc.setFont("times", "normal");
+            doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
+            doc.text("2. Esta proforma es un documento informativo.", 10, yPos + 9);
+            doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
+            doc.setFont("times", "bold");
+            doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
+        };
+
+        const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
+        const detalles = record.detalles_normalizados || [];
+        const tableRows = detalles.map(item => {
+            const artData = item.Articulo || item.articulo;
+            const nombreArt = artData ? artData.nombre : (articulos.get(String(item.id_articulo || item.idArticulo))?.nombre || 'Desconocido');
+            return [
+                item.cantidad,
+                nombreArt,
+                parseFloat(item.precio_unitario).toFixed(2),
+                "0.00",
+                parseFloat(item.subtotal).toFixed(2)
+            ]
+        });
+
+        autoTable(doc, {
+            startY: 85,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'plain',
+            headStyles: {
+                fillColor: [180, 180, 180],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+                halign: 'center',
+                lineWidth: 0.5,
+                lineColor: [255, 255, 255]
+            },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 25 },
+                1: { halign: 'left' },
+                2: { halign: 'right', cellWidth: 30 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', cellWidth: 30 }
+            },
+            styles: {
+                font: 'times',
+                fontSize: 11,
+                cellPadding: 2,
+                minCellHeight: 6,
+                textColor: [0, 0, 0]
+            },
+            margin: { left: 10, right: 10, bottom: 95, top: 88 },
+            didDrawPage: (data) => {
+                drawHeader();
+                drawTerms(pageHeight - 80);
+            }
+        });
+
+        let lastY = doc.lastAutoTable.finalY;
+        if (lastY > totalsY) {
+            doc.addPage();
+            drawHeader();
+            drawTerms(pageHeight - 80);
+        }
+        doc.setPage(doc.internal.getNumberOfPages());
+
+        const totalX = 135;
+        const valueX = 200;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        const subtotal = parseFloat(record.total) || 0;
+        const gravado15 = subtotal / 1.15;
+        const isv15 = subtotal - gravado15;
+
+        doc.text("Importe Exonerado:", totalX, totalsY + 5);
+        doc.text("0.00", valueX, totalsY + 5, { align: "right" });
+
+        doc.text("Importe Exento:", totalX, totalsY + 12);
+        doc.text("0.00", valueX, totalsY + 12, { align: "right" });
+
+        doc.text("Importe Gravado 15%:", totalX, totalsY + 19);
+        doc.text(gravado15.toFixed(2), valueX, totalsY + 19, { align: "right" });
+
+        doc.text("Importe Gravado 18%:", totalX, totalsY + 26);
+        doc.text("0.00", valueX, totalsY + 26, { align: "right" });
+
+        doc.text("I.S.V. 15%:", totalX, totalsY + 33);
+        doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
+
+        doc.setFont("times", "bold");
+        doc.text("Total A Pagar L.", totalX, totalsY + 42);
+        doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
+
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("times", "normal");
+        doc.text("Firma: ________________________________________", 10, pageHeight - 20); 
+        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
+        doc.text("Esta proforma es un documento informativo", 200, pageHeight - 20, { align: "right" });
+
+        doc.autoPrint();
+        window.open(doc.output('bloburl'), '_blank');
     };
 
     const columns = [
@@ -272,40 +441,50 @@ const ReportesVentas = () => {
             key: 'acciones',
             align: 'center',
             render: (_, record) => (
-                record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
-                    <Popconfirm
-                        title="¿Estás seguro de cancelar esta venta?"
-                        description="Esta acción repondrá el stock de los productos."
-                        onConfirm={() => handleCancelVenta(record.id_venta)}
-                        okText="Sí, cancelar"
-                        cancelText="No"
-                        okButtonProps={{ danger: true }}
-                    >
-                        <Button
-                            type="text"
-                            danger
-                            icon={<CloseCircleOutlined />}
-                            className="hover:bg-red-50 flex items-center justify-center mx-auto"
-                        />
-                    </Popconfirm>
-                )
+                <div className="flex gap-2 justify-center items-center">
+                    <Button
+                        type="default"
+                        title="Reimprimir Documento"
+                        icon={<PrinterOutlined className="text-gray-600" />}
+                        onClick={() => handlePrintVenta(record)}
+                        className="hover:text-[#163269] hover:border-[#163269]"
+                        size="small"
+                    />
+                    {record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
+                        <Popconfirm
+                            title="¿Estás seguro de cancelar esta venta?"
+                            description="Esta acción repondrá el stock de los productos."
+                            onConfirm={() => handleCancelVenta(record.id_venta)}
+                            okText="Sí, cancelar"
+                            cancelText="No"
+                            okButtonProps={{ danger: true }}
+                        >
+                            <Button
+                                type="text"
+                                danger
+                                icon={<CloseCircleOutlined />}
+                                className="hover:bg-red-50 flex items-center justify-center p-0 w-6 h-6"
+                            />
+                        </Popconfirm>
+                    )}
+                </div>
             )
         }
     ];
 
     return (
-        <div className="p-6 min-h-screen bg-gray-50">
+        <div className="p-4 md:p-6 min-h-screen bg-gray-50">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-6 border-b border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8 pb-4 md:pb-6 border-b border-gray-200 gap-4 md:gap-0">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#163269]">Reportes Financieros</h1>
-                    <p className="text-gray-500 mt-1">Analítica de ventas y rendimiento del negocio</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-[#163269]">Reportes Financieros</h1>
+                    <p className="text-sm md:text-base text-gray-500 mt-1">Analítica de ventas y rendimiento del negocio</p>
                 </div>
-                <div className="mt-4 md:mt-0">
+                <div className="w-full md:w-auto">
                     <RangePicker
                         value={dateRange}
                         onChange={handleDateFilter}
-                        className="py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:border-[#163269] transition-colors"
+                        className="w-full md:w-auto py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:border-[#163269] transition-colors"
                         format="DD/MM/YYYY"
                         presets={[
                             { label: 'Hoy', value: [moment().startOf('day'), moment().endOf('day')] },
@@ -317,104 +496,106 @@ const ReportesVentas = () => {
                 </div>
             </div>
 
-            {/* Stats Cards - Colorful & Equal Height */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                {/* Inventario Actual (Nuevo) */}
-                <div className="bg-[#4F46E5] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+            {/* Stats Cards - Horizontal Slider on Mobile / Grid on Desktop */}
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 xl:grid-cols-5 md:pb-0 md:gap-6 mb-6 md:mb-8 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full">
+                {/* Inventario Actual */}
+                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#4F46E5] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
-                            <ShoppingCartOutlined className="text-2xl text-white" />
+                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
+                            <ShoppingCartOutlined className="text-xl md:text-2xl text-white" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Stock</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Stock</span>
                     </div>
                     <div>
-                        <p className="text-indigo-200 text-sm font-medium mb-1">Valor Inventario Actual</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                        <p className="text-indigo-200 text-xs md:text-sm font-medium mb-1 line-clamp-1">Valor Actual</p>
+                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.valorInventarioActual.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
-                        <p className="text-xs text-indigo-200 mt-1 opacity-80 backdrop-blur-sm">{stats.unidadesInventario} unidades totales</p>
+                        <p className="text-[10px] md:text-xs text-indigo-200 mt-1 opacity-80 backdrop-blur-sm">{stats.unidadesInventario} uds</p>
                     </div>
                 </div>
                 {/* Ventas Totales */}
-                <div className="bg-[#163269] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#163269] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
-                            <DollarOutlined className="text-2xl text-white" />
+                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
+                            <DollarOutlined className="text-xl md:text-2xl text-white" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Ingresos</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Ingresos</span>
                     </div>
                     <div>
-                        <p className="text-blue-200 text-sm font-medium mb-1">Ventas Totales</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                        <p className="text-blue-200 text-xs md:text-sm font-medium mb-1 line-clamp-1">Ventas Totales</p>
+                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.totalVentas.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
                 </div>
 
                 {/* Utilidad */}
-                <div className="bg-[#059669] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#059669] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
-                            <FallOutlined rotate={180} className="text-2xl text-white" />
+                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
+                            <FallOutlined rotate={180} className="text-xl md:text-2xl text-white" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Ganancia</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Ganancia</span>
                     </div>
                     <div>
-                        <p className="text-green-100 text-sm font-medium mb-1">Utilidad Neta</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                        <p className="text-green-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">Utilidad Neta</p>
+                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.utilidadTotal.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
-                        <p className="text-xs text-green-200 mt-1 opacity-80 backdrop-blur-sm">Ingresos - Costos</p>
+                        <p className="text-[10px] md:text-xs text-green-200 mt-1 opacity-80 backdrop-blur-sm">Ingresos - Costos</p>
                     </div>
                 </div>
 
                 {/* Costo */}
-                <div className="bg-[#DC2626] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#DC2626] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
-                            <AreaChartOutlined className="text-2xl text-white" />
+                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
+                            <AreaChartOutlined className="text-xl md:text-2xl text-white" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Gastos</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Gastos</span>
                     </div>
                     <div>
-                        <p className="text-red-100 text-sm font-medium mb-1">Costo Mercancía</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                        <p className="text-red-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">Costo Mercancía</p>
+                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.costoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
                 </div>
 
                 {/* Transacciones */}
-                <div className="bg-[#D97706] rounded-xl p-6 shadow-lg text-white flex flex-col justify-between min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#D97706] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
                     <div className="flex items-center justify-between mb-2">
-                        <div className="p-3 bg-white/10 rounded-full backdrop-blur-sm">
-                            <ShoppingCartOutlined className="text-2xl text-white" />
+                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
+                            <ShoppingCartOutlined className="text-xl md:text-2xl text-white" />
                         </div>
-                        <span className="text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden md:block">Volumen</span>
+                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Volumen</span>
                     </div>
                     <div>
-                        <p className="text-orange-100 text-sm font-medium mb-1">N° Transacciones</p>
-                        <h3 className="text-3xl font-bold text-white tracking-tight">
+                        <p className="text-orange-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">N° Transacciones</p>
+                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                             {stats.cantidadVentas}
                         </h3>
-                        <p className="text-xs text-orange-200 mt-1 opacity-80 backdrop-blur-sm">Ventas realizadas</p>
+                        <p className="text-[10px] md:text-xs text-orange-200 mt-1 opacity-80 backdrop-blur-sm">Ventas realizadas</p>
                     </div>
                 </div>
             </div>
 
             {/* Table Section */}
             <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-[#1e293b] border-b border-gray-100 flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-white">Historial de Transacciones</h2>
-                    <span className="text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded-full">Mostrando {filteredVentas.length} registros</span>
+                <div className="px-4 md:px-6 py-4 bg-[#1e293b] border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                    <h2 className="text-base md:text-lg font-bold text-white">Historial de Transacciones</h2>
+                    <span className="text-xs md:text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap">Mostrando {filteredVentas.length}</span>
                 </div>
                 <Table
                     dataSource={filteredVentas}
                     columns={columns}
                     rowKey="id_unico"
+                    scroll={{ x: 'max-content' }}
                     pagination={{
                         pageSize: 8,
                         showSizeChanger: false,
+                        responsive: true,
                         itemRender: (page, type, originalElement) => {
                             if (type === 'prev') return <a className="text-[#163269] hover:bg-gray-100 px-2 py-1 rounded">Anterior</a>;
                             if (type === 'next') return <a className="text-[#163269] hover:bg-gray-100 px-2 py-1 rounded">Siguiente</a>;
@@ -424,13 +605,14 @@ const ReportesVentas = () => {
                     className="report-table"
                     expandable={{
                         expandedRowRender: record => (
-                            <div className="bg-gray-50 p-4 rounded-lg mx-4 my-2 border border-gray-200">
-                                <h4 className="text-sm font-bold text-gray-600 mb-3 uppercase tracking-wider">Detalles de la compra</h4>
+                            <div className="bg-gray-50 p-3 md:p-4 rounded-lg mx-0 md:mx-4 my-2 border border-gray-200 overflow-x-auto">
+                                <h4 className="text-xs md:text-sm font-bold text-gray-600 mb-2 md:mb-3 uppercase tracking-wider">Detalles de la compra</h4>
                                 <Table
                                     dataSource={record.detalles_normalizados || []}
                                     rowKey={(r) => r.id_detalle_venta || r.id_detalle || Math.random()}
                                     pagination={false}
                                     size="small"
+                                    scroll={{ x: 400 }}
                                     bordered={false}
                                     columns={[
                                         {
@@ -442,9 +624,35 @@ const ReportesVentas = () => {
                                                 return <span className="font-medium text-gray-700">{nombre}</span>
                                             }
                                         },
-                                        { title: 'Cantidad', dataIndex: 'cantidad', align: 'center' },
-                                        { title: 'Precio Unit.', dataIndex: 'precio_unitario', align: 'right', render: v => `L. ${parseFloat(v).toFixed(2)}` },
-                                        { title: 'Subtotal', dataIndex: 'subtotal', align: 'right', render: v => <span className="font-semibold text-[#163269]">L. {parseFloat(v).toFixed(2)}</span> }
+                                        { title: 'Cant.', dataIndex: 'cantidad', align: 'center' },
+                                        { title: 'P. Unit.', dataIndex: 'precio_unitario', align: 'right', render: v => `L. ${parseFloat(v).toFixed(2)}` },
+                                        { title: 'Subtotal', dataIndex: 'subtotal', align: 'right', render: v => <span className="font-semibold text-[#163269]">L. {parseFloat(v).toFixed(2)}</span> },
+                                        {
+                                            title: '',
+                                            key: 'acciones_item',
+                                            align: 'center',
+                                            render: (_, r) => (
+                                                record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
+                                                    <Popconfirm
+                                                        title="¿Devolver este producto?"
+                                                        description="Se repondrá al stock y se restará del total."
+                                                        onConfirm={() => handleRemoveItem(record.id_venta, r.id_detalle_venta || r.id_detalle)}
+                                                        okText="Devolver"
+                                                        cancelText="No"
+                                                        okButtonProps={{ danger: true }}
+                                                    >
+                                                        <Button
+                                                            type="text"
+                                                            danger
+                                                            icon={<CloseCircleOutlined />}
+                                                            size="small"
+                                                            title="Devolver unidad"
+                                                            className="flex items-center justify-center p-0 w-6 h-6"
+                                                        />
+                                                    </Popconfirm>
+                                                )
+                                            )
+                                        }
                                     ]}
                                 />
                             </div>

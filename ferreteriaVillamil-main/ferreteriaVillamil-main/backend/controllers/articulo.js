@@ -181,38 +181,31 @@ const getAllItems = async (request, response) => {
 
 const getAllActiveItems = async (request, response) => {
     try {
-        const { search, limit = 2000 } = request.query;
-        const lim = Math.min(parseInt(limit, 10) || 2000, 2000);
+        const { search, limit = 200 } = request.query;
+        const lim = Math.min(parseInt(limit, 10) || 200, 1000); 
 
-        let where;
+        let where = { estado: 'Disponible' };
+        
         if (search && search.trim()) {
-            const searchTerm = search.trim().toLowerCase();
+            const searchTerm = search.trim(); // No need for toLowerCase() with iLike
             where = {
                 [Op.and]: [
                     { estado: 'Disponible' },
                     {
                         [Op.or]: [
-                            sequelize.where(
-                                sequelize.fn('LOWER', sequelize.col('nombre')),
-                                { [Op.like]: `%${searchTerm}%` }
-                            ),
-                            sequelize.where(
-                                sequelize.fn('LOWER', sequelize.col('codigo')),
-                                { [Op.like]: `%${searchTerm}%` }
-                            )
+                            { nombre: { [Op.iLike]: `%${searchTerm}%` } },
+                            { codigo: { [Op.iLike]: `%${searchTerm}%` } }
                         ]
                     }
                 ]
             };
-        } else {
-            where = { estado: 'Disponible' };
         }
 
         const items = await Articulo.findAll({
             where,
             limit: lim,
             order: [['nombre', 'ASC']],
-            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'cantidad_existencia', 'foto_url', 'estado'],
+            attributes: ['id_articulo', 'codigo', 'nombre', 'precio', 'cantidad_existencia', 'foto_url', 'estado'],
             raw: true
         });
 

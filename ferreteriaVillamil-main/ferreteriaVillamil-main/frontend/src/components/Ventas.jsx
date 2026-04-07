@@ -180,20 +180,29 @@ const Ventas = () => {
             doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
             doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
 
-            doc.setFontSize(12);
+            doc.setFontSize(14);
             doc.setFont("times", "bold");
-            doc.text("FACTURA DE VENTA", 200, 46, { align: "right" });
+            doc.text("PROFORMA", 200, 46, { align: "right" });
             doc.setFontSize(12);
-            doc.text(`N° FAC-${String(lastSaleData.id_venta).padStart(7, '0')}`, 200, 54, { align: "right" });
+            doc.text(`N° PROF-${String(lastSaleData.id_venta).padStart(7, '0')}`, 200, 54, { align: "right" });
 
             // Línea divisora perfectamente centrada
             doc.setDrawColor(0, 0, 0);
             doc.line(10, 60, 200, 60);
 
+            // Aviso Legal
+            doc.setFontSize(8);
+            doc.setFont("times", "italic");
+            doc.setTextColor(80, 80, 80);
+            doc.text("Este documento es generado únicamente con fines informativos y de control interno.", 105, 65, { align: "center" });
+            doc.text("No constituye una factura fiscal válida, ni puede ser utilizado para efectos tributarios ante autoridades fiscales.", 105, 69, { align: "center" });
+            doc.text("La factura legal correspondiente debe ser emitida a través del sistema autorizado conforme a la normativa vigente.", 105, 73, { align: "center" });
+
             doc.setFontSize(10);
             doc.setFont("times", "normal");
-            doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 68);
-            doc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 80);
+            doc.text(`Fecha:  ${date}`, 200, 80, { align: "right" });
         };
 
         // Función para dibujar los términos y condiciones fijos
@@ -205,7 +214,7 @@ const Ventas = () => {
             doc.setFontSize(8); // Un poco mas grande
             doc.setFont("times", "normal");
             doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
-            doc.text("2. Esta factura es un compromiso de compra.", 10, yPos + 9);
+            doc.text("2. Esta proforma es un documento informativo.", 10, yPos + 9);
             doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
             doc.setFont("times", "bold");
             doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
@@ -221,7 +230,7 @@ const Ventas = () => {
         ]);
 
         autoTable(doc, {
-            startY: 75,
+            startY: 85,
             head: [tableColumn],
             body: tableRows,
             theme: 'plain',
@@ -247,7 +256,7 @@ const Ventas = () => {
                 minCellHeight: 6,
                 textColor: [0, 0, 0]
             },
-            margin: { left: 10, right: 10, bottom: 95, top: 78 },
+            margin: { left: 10, right: 10, bottom: 95, top: 88 },
             didDrawPage: (data) => {
                 drawHeader();
                 drawTerms(pageHeight - 80);
@@ -296,7 +305,8 @@ const Ventas = () => {
         doc.setTextColor(0, 0, 0);
         doc.setFont("times", "normal");
         doc.text("Firma: ________________________________________", 10, pageHeight - 20); // Margen 10mm exacto
-        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 20, { align: "right" });
+        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
+        doc.text("Esta proforma es un documento informativo", 200, pageHeight - 20, { align: "right" });
 
         return doc;
     };

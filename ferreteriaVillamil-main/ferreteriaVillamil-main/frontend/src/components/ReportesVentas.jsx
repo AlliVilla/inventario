@@ -23,6 +23,8 @@ const ReportesVentas = () => {
         valorInventarioActual: 0,
         unidadesInventario: 0
     });
+    const [mobileExpandedId, setMobileExpandedId] = useState(null);
+    const [mobileVisibleCount, setMobileVisibleCount] = useState(10);
 
     useEffect(() => {
         fetchData();
@@ -165,6 +167,8 @@ const ReportesVentas = () => {
 
     const handleDateFilter = (dates) => {
         setDateRange(dates);
+        setMobileVisibleCount(10);
+        setMobileExpandedId(null);
         if (!dates) {
             setFilteredVentas(ventas);
             calculateStats(ventas, articulos);
@@ -573,96 +577,87 @@ const ReportesVentas = () => {
                 </div>
             </div>
 
-            {/* Stats Cards - Horizontal Slider on Mobile / Grid on Desktop */}
-            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 md:grid md:grid-cols-2 xl:grid-cols-5 md:pb-0 md:gap-6 mb-6 md:mb-8 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:rounded-full">
+            {/* Stats Cards - Grid on Mobile / Grid on Desktop */}
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-2 xl:grid-cols-5 md:gap-6 mb-4 md:mb-8">
                 {/* Inventario Actual */}
-                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#4F46E5] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
-                            <ShoppingCartOutlined className="text-xl md:text-2xl text-white" />
+                <div className="bg-[#4F46E5] rounded-xl p-3 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[100px] md:min-h-[160px]">
+                    <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <div className="p-1.5 md:p-3 bg-white/10 rounded-full">
+                            <ShoppingCartOutlined className="text-sm md:text-2xl text-white" />
                         </div>
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Stock</span>
+                        <p className="text-indigo-200 text-[10px] md:text-sm font-medium">Inventario</p>
                     </div>
                     <div>
-                        <p className="text-indigo-200 text-xs md:text-sm font-medium mb-1 line-clamp-1">Valor Actual</p>
-                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
+                        <h3 className="text-base md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.valorInventarioActual.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
-                        <p className="text-[10px] md:text-xs text-indigo-200 mt-1 opacity-80 backdrop-blur-sm">{stats.unidadesInventario} uds</p>
+                        <p className="text-[9px] md:text-xs text-indigo-200 opacity-80">{stats.unidadesInventario} uds</p>
                     </div>
                 </div>
                 {/* Ventas Totales */}
-                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#163269] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
-                            <DollarOutlined className="text-xl md:text-2xl text-white" />
+                <div className="bg-[#163269] rounded-xl p-3 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[100px] md:min-h-[160px]">
+                    <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <div className="p-1.5 md:p-3 bg-white/10 rounded-full">
+                            <DollarOutlined className="text-sm md:text-2xl text-white" />
                         </div>
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Ingresos</span>
+                        <p className="text-blue-200 text-[10px] md:text-sm font-medium">Ventas</p>
                     </div>
                     <div>
-                        <p className="text-blue-200 text-xs md:text-sm font-medium mb-1 line-clamp-1">Ventas Totales</p>
-                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
+                        <h3 className="text-base md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.totalVentas.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
                 </div>
 
                 {/* Utilidad */}
-                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#059669] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
-                            <FallOutlined rotate={180} className="text-xl md:text-2xl text-white" />
+                <div className="bg-[#059669] rounded-xl p-3 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[100px] md:min-h-[160px]">
+                    <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <div className="p-1.5 md:p-3 bg-white/10 rounded-full">
+                            <FallOutlined rotate={180} className="text-sm md:text-2xl text-white" />
                         </div>
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Ganancia</span>
+                        <p className="text-green-100 text-[10px] md:text-sm font-medium">Utilidad</p>
                     </div>
                     <div>
-                        <p className="text-green-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">Utilidad Neta</p>
-                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
+                        <h3 className="text-base md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.utilidadTotal.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
-                        <p className="text-[10px] md:text-xs text-green-200 mt-1 opacity-80 backdrop-blur-sm">Ingresos - Costos</p>
                     </div>
                 </div>
 
                 {/* Costo */}
-                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#DC2626] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
-                            <AreaChartOutlined className="text-xl md:text-2xl text-white" />
+                <div className="bg-[#DC2626] rounded-xl p-3 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[100px] md:min-h-[160px]">
+                    <div className="flex items-center gap-2 mb-1 md:mb-2">
+                        <div className="p-1.5 md:p-3 bg-white/10 rounded-full">
+                            <AreaChartOutlined className="text-sm md:text-2xl text-white" />
                         </div>
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Gastos</span>
+                        <p className="text-red-100 text-[10px] md:text-sm font-medium">Costos</p>
                     </div>
                     <div>
-                        <p className="text-red-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">Costo Mercancía</p>
-                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight break-all">
+                        <h3 className="text-base md:text-3xl font-bold text-white tracking-tight break-all">
                             L. {stats.costoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
                 </div>
 
-                {/* Transacciones */}
-                <div className="min-w-[75%] sm:min-w-[40%] md:min-w-0 snap-center shrink-0 bg-[#D97706] rounded-xl p-5 md:p-6 shadow-lg text-white flex flex-col justify-between min-h-[140px] md:min-h-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="p-2 md:p-3 bg-white/10 rounded-full backdrop-blur-sm flex items-center justify-center">
-                            <ShoppingCartOutlined className="text-xl md:text-2xl text-white" />
+                {/* Transacciones - full width on mobile */}
+                <div className="col-span-2 xl:col-span-1 bg-[#D97706] rounded-xl p-3 md:p-6 shadow-lg text-white flex md:flex-col items-center md:items-start justify-between md:justify-between min-h-0 md:min-h-[160px]">
+                    <div className="flex items-center gap-2">
+                        <div className="p-1.5 md:p-3 bg-white/10 rounded-full">
+                            <ShoppingCartOutlined className="text-sm md:text-2xl text-white" />
                         </div>
-                        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider bg-white/20 px-2 py-1 rounded text-white hidden sm:block">Volumen</span>
+                        <p className="text-orange-100 text-[10px] md:text-sm font-medium">Transacciones</p>
                     </div>
-                    <div>
-                        <p className="text-orange-100 text-xs md:text-sm font-medium mb-1 line-clamp-1">N° Transacciones</p>
-                        <h3 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                            {stats.cantidadVentas}
-                        </h3>
-                        <p className="text-[10px] md:text-xs text-orange-200 mt-1 opacity-80 backdrop-blur-sm">Ventas realizadas</p>
-                    </div>
+                    <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight">
+                        {stats.cantidadVentas}
+                    </h3>
                 </div>
             </div>
 
-            {/* Table Section */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div className="px-4 md:px-6 py-4 bg-[#1e293b] border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-                    <h2 className="text-base md:text-lg font-bold text-white">Historial de Transacciones</h2>
-                    <span className="text-xs md:text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap">Mostrando {filteredVentas.length}</span>
+            {/* Table Section - Desktop */}
+            <div className="hidden md:block bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-[#1e293b] border-b border-gray-100 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-white">Historial de Transacciones</h2>
+                    <span className="text-sm text-gray-300 bg-gray-700 px-3 py-1 rounded-full whitespace-nowrap">Mostrando {filteredVentas.length}</span>
                 </div>
                 <Table
                     dataSource={filteredVentas}
@@ -682,8 +677,8 @@ const ReportesVentas = () => {
                     className="report-table"
                     expandable={{
                         expandedRowRender: record => (
-                            <div className="bg-gray-50 p-3 md:p-4 rounded-lg mx-0 md:mx-4 my-2 border border-gray-200 overflow-x-auto">
-                                <h4 className="text-xs md:text-sm font-bold text-gray-600 mb-2 md:mb-3 uppercase tracking-wider">Detalles de la compra</h4>
+                            <div className="bg-gray-50 p-4 rounded-lg mx-4 my-2 border border-gray-200 overflow-x-auto">
+                                <h4 className="text-sm font-bold text-gray-600 mb-3 uppercase tracking-wider">Detalles de la compra</h4>
                                 <Table
                                     dataSource={record.detalles_normalizados || []}
                                     rowKey={(r) => r.id_detalle_venta || r.id_detalle || Math.random()}
@@ -742,6 +737,152 @@ const ReportesVentas = () => {
                             )
                     }}
                 />
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden">
+                <div className="flex items-center justify-between mb-3 px-1">
+                    <h2 className="text-sm font-bold text-[#163269]">Transacciones</h2>
+                    <span className="text-[10px] text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">{filteredVentas.length} registros</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                    {filteredVentas.length === 0 && (
+                        <div className="bg-white rounded-xl p-6 text-center text-gray-400 text-sm border border-gray-200">
+                            No hay transacciones en este rango
+                        </div>
+                    )}
+                    {filteredVentas.slice(0, mobileVisibleCount).map(record => {
+                        const total = parseFloat(record.total) || 0;
+                        const envio = parseFloat(record.costo_envio || record.envio || 0);
+                        let costoVentaTotal = 0;
+                        const detalles = record.detalles_normalizados || [];
+                        detalles.forEach(d => {
+                            let costoU = 0;
+                            const artData = d.Articulo || d.articulo;
+                            if (artData && (artData.costo_unitario !== undefined && artData.costo_unitario !== null)) {
+                                costoU = parseFloat(artData.costo_unitario) || 0;
+                            } else {
+                                const idArt = d.id_articulo || d.idArticulo;
+                                const articuloFromMap = idArt ? articulos.get(String(idArt)) : null;
+                                costoU = articuloFromMap ? (parseFloat(articuloFromMap.costo_unitario) || 0) : 0;
+                            }
+                            costoVentaTotal += (parseFloat(d.cantidad) || 0) * costoU;
+                        });
+                        const utilidad = (total - envio) - costoVentaTotal;
+                        const isCancelled = record.estado === 'Cancelada' || record.estado === 'Cancelado';
+                        const isExpanded = mobileExpandedId === record.id_unico;
+
+                        return (
+                            <div key={record.id_unico} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                {/* Card Header */}
+                                <div className="p-3 flex items-center justify-between" onClick={() => setMobileExpandedId(isExpanded ? null : record.id_unico)}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="flex flex-col items-center shrink-0">
+                                            <span className="text-xs font-bold text-gray-700">#{record.id_venta || record.id_pedido}</span>
+                                            <Tag color={record.tipo_transaccion === 'Venta' ? 'blue' : 'purple'} className="text-[9px] px-1 py-0 leading-tight m-0">
+                                                {record.tipo_transaccion.toUpperCase()}
+                                            </Tag>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-medium text-gray-800 truncate">{record.cliente_nombre || 'Consumidor Final'}</p>
+                                            <p className="text-[10px] text-gray-400">{moment(record.fecha_normalizada).format('DD MMM YYYY, h:mm a')}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end shrink-0 ml-2">
+                                        <span className="text-sm font-bold text-[#163269]">L. {total.toFixed(2)}</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isCancelled ? 'bg-gray-100 text-gray-400' : utilidad >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {isCancelled ? 'CANC' : `L.${utilidad.toFixed(0)}`}
+                                            </span>
+                                            <Tag 
+                                                color={isCancelled ? 'red' : (record.estado === 'Entregado' || record.estado === 'Completada' ? 'green' : 'orange')} 
+                                                className="text-[9px] px-1 py-0 m-0 leading-tight"
+                                            >
+                                                {(record.estado || 'OK').toUpperCase().slice(0, 4)}
+                                            </Tag>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Expandable Details */}
+                                {isExpanded && (
+                                    <div className="border-t border-gray-100">
+                                        {/* Product list */}
+                                        <div className="px-3 py-2 bg-gray-50">
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Productos</p>
+                                            {detalles.map((d, i) => {
+                                                const artData = d.Articulo || d.articulo;
+                                                const nombre = artData ? artData.nombre : (articulos.get(String(d.id_articulo || d.idArticulo))?.nombre || 'Desconocido');
+                                                return (
+                                                    <div key={i} className="flex items-center justify-between py-1 border-b border-gray-100 last:border-0">
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs text-gray-700 truncate">{nombre}</p>
+                                                            <p className="text-[10px] text-gray-400">{d.cantidad} × L.{parseFloat(d.precio_unitario).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                            <span className="text-xs font-semibold text-[#163269]">L.{parseFloat(d.subtotal).toFixed(2)}</span>
+                                                            {record.tipo_transaccion === 'Venta' && !isCancelled && (
+                                                                <Popconfirm
+                                                                    title="¿Devolver este producto?"
+                                                                    description="Se repondrá al stock."
+                                                                    onConfirm={() => handleRemoveItem(record.id_venta, d.id_detalle_venta || d.id_detalle)}
+                                                                    okText="Sí"
+                                                                    cancelText="No"
+                                                                    okButtonProps={{ danger: true }}
+                                                                >
+                                                                    <button className="text-red-400 hover:text-red-600 p-0.5">
+                                                                        <CloseCircleOutlined className="text-xs" />
+                                                                    </button>
+                                                                </Popconfirm>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            {envio > 0 && (
+                                                <p className="text-[10px] text-gray-400 mt-1">Envío: L.{envio.toFixed(2)}</p>
+                                            )}
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="px-3 py-2 flex gap-2 justify-end bg-white">
+                                            <Button
+                                                type="default"
+                                                size="small"
+                                                icon={<PrinterOutlined />}
+                                                onClick={() => handlePrintVenta(record)}
+                                                className="text-xs"
+                                            >
+                                                Imprimir
+                                            </Button>
+                                            {record.tipo_transaccion === 'Venta' && !isCancelled && (
+                                                <Popconfirm
+                                                    title="¿Cancelar esta venta?"
+                                                    description="Se repondrá el stock."
+                                                    onConfirm={() => handleCancelVenta(record.id_venta)}
+                                                    okText="Sí, cancelar"
+                                                    cancelText="No"
+                                                    okButtonProps={{ danger: true }}
+                                                >
+                                                    <Button type="primary" danger size="small" icon={<CloseCircleOutlined />} className="text-xs">
+                                                        Cancelar
+                                                    </Button>
+                                                </Popconfirm>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    {mobileVisibleCount < filteredVentas.length && (
+                        <button
+                            onClick={() => setMobileVisibleCount(prev => prev + 10)}
+                            className="w-full py-3 text-sm font-semibold text-[#163269] bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                        >
+                            Cargar más ({filteredVentas.length - mobileVisibleCount} restantes)
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );

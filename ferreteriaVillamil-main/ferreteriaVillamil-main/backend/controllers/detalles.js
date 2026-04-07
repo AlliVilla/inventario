@@ -1,4 +1,4 @@
-const { Detalle_Pedido, Articulo, sequelize } = require('../models');
+const { Detalle_Pedido, Articulo, Pedido, sequelize } = require('../models');
 
 function checkForNull(data, res) {
     if (!data || Object.keys(data).length === 0) {
@@ -137,25 +137,25 @@ const deleteDetalle = async (request, response) => {
             });
         }
 
-        const pedido = await sequelize.models.Pedido.findByPk(detalle.id_pedido, { transaction });
+        const pedido = await Pedido.findByPk(detalle.id_pedido, { transaction });
 
         // Si el pedido ya fue entregado, devolvemos el stock
         if (pedido.estado === 'Entregado') {
             const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
             if (articulo) {
                 await articulo.update({
-                    cantidad_existencia: articulo.cantidad_existencia + detalle.cantidad
+                    cantidad_existencia: Number(articulo.cantidad_existencia || 0) + Number(detalle.cantidad || 0)
                 }, { transaction });
             }
         }
 
-        const subtotalRestar = detalle.subtotal;
+        const subtotalRestar = Number(detalle.subtotal || 0);
 
         // Eliminar detalle
         await detalle.destroy({ transaction });
 
         // Actualizar total del pedido
-        const nuevoTotal = Number(pedido.total) - Number(subtotalRestar);
+        const nuevoTotal = Number(pedido.total || 0) - subtotalRestar;
         await pedido.update({ total: nuevoTotal }, { transaction });
 
         await transaction.commit();

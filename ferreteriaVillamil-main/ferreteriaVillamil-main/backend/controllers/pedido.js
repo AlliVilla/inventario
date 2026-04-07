@@ -472,6 +472,11 @@ const cancelarPedidoConReposicionInventario = async (pedidoId, transaction) => {
 
   if (pedido.estado === "Entregado") {
     // Solo si estaba entregado devolvemos el stock (porque solo ahí se descontó)
+    const detalles = await Detalle_Pedido.findAll({
+      where: { id_pedido: pedidoId },
+      transaction
+    });
+
     const cantidadesPorArticulo = new Map();
     for (const detalle of detalles) {
       const idArticulo = detalle.id_articulo;
@@ -490,8 +495,6 @@ const cancelarPedidoConReposicionInventario = async (pedidoId, transaction) => {
       });
 
       if (!articulo) {
-        // Log pero continuar? O fallar? 
-        // Mejor fallar para consistencia
         return {
           statusCode: 404,
           body: {

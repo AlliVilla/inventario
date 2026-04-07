@@ -160,8 +160,30 @@ const ReportesVentas = () => {
             message.success("Producto devuelto al stock de manera exitosa");
             fetchData();
         } catch (error) {
-            console.error("Error al devolver producto:", error);
-            message.error(error.response?.data?.message || "Error al devolver el producto");
+            console.error("Error al devolver item:", error);
+            message.error(error.response?.data?.message || "Error al remover el producto");
+        }
+    };
+
+    const handleCancelPedido = async (id_pedido) => {
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/pedidos/${id_pedido}/cancelar-envio`);
+            message.success("Pedido cancelado exitosamente");
+            fetchData();
+        } catch (error) {
+            console.error("Error al cancelar pedido:", error);
+            message.error(error.response?.data?.message || "Error al cancelar el pedido");
+        }
+    };
+
+    const handleRemoveItemPedido = async (id_detalle) => {
+        try {
+            await axios.delete(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/detalles/${id_detalle}`);
+            message.success("Producto eliminado del pedido exitosamente");
+            fetchData();
+        } catch (error) {
+            console.error("Error al eliminar item del pedido:", error);
+            message.error(error.response?.data?.message || "Error al eliminar el producto");
         }
     };
 
@@ -454,11 +476,15 @@ const ReportesVentas = () => {
                         className="hover:text-[#163269] hover:border-[#163269]"
                         size="small"
                     />
-                    {record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
+                    {((record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada') || 
+                      (record.tipo_transaccion === 'Pedido' && record.estado !== 'Cancelado')) && (
                         <Popconfirm
-                            title="¿Estás seguro de cancelar esta venta?"
+                            title={record.tipo_transaccion === 'Venta' ? "¿Cancelar esta venta?" : "¿Cancelar este pedido?"}
                             description="Esta acción repondrá el stock de los productos."
-                            onConfirm={() => handleCancelVenta(record.id_venta)}
+                            onConfirm={() => {
+                                if (record.tipo_transaccion === 'Venta') handleCancelVenta(record.id_venta);
+                                else handleCancelPedido(record.id_pedido);
+                            }}
                             okText="Sí, cancelar"
                             cancelText="No"
                             okButtonProps={{ danger: true }}
@@ -703,12 +729,18 @@ const ReportesVentas = () => {
                                             title: '',
                                             key: 'acciones_item',
                                             align: 'center',
-                                            render: (_, r) => (
-                                                record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada' && (
+                                            render: (_, r) => {
+                                                const canModify = (record.tipo_transaccion === 'Venta' && record.estado !== 'Cancelada') || 
+                                                                 (record.tipo_transaccion === 'Pedido' && record.estado !== 'Cancelado');
+                                                if (!canModify) return null;
+                                                return (
                                                     <Popconfirm
                                                         title="¿Devolver este producto?"
-                                                        description="Se repondrá al stock y se restará del total."
-                                                        onConfirm={() => handleRemoveItem(record.id_venta, r.id_detalle_venta || r.id_detalle)}
+                                                        description="Se repondrá al stock."
+                                                        onConfirm={() => {
+                                                            if (record.tipo_transaccion === 'Venta') handleRemoveItem(record.id_venta, r.id_detalle_venta || r.id_detalle || r.id_detalle_pedido);
+                                                            else handleRemoveItemPedido(r.id_detalle);
+                                                        }}
                                                         okText="Devolver"
                                                         cancelText="No"
                                                         okButtonProps={{ danger: true }}
@@ -723,7 +755,7 @@ const ReportesVentas = () => {
                                                         />
                                                     </Popconfirm>
                                                 )
-                                            )
+                                            }
                                         }
                                     ]}
                                 />
@@ -821,11 +853,15 @@ const ReportesVentas = () => {
                                                         </div>
                                                         <div className="flex items-center gap-1 shrink-0 ml-2">
                                                             <span className="text-xs font-semibold text-[#163269]">L.{parseFloat(d.subtotal).toFixed(2)}</span>
-                                                            {record.tipo_transaccion === 'Venta' && !isCancelled && (
+                                                            {((record.tipo_transaccion === 'Venta' && !isCancelled) || 
+                                                              (record.tipo_transaccion === 'Pedido' && record.estado !== 'Cancelado')) && (
                                                                 <Popconfirm
                                                                     title="¿Devolver este producto?"
                                                                     description="Se repondrá al stock."
-                                                                    onConfirm={() => handleRemoveItem(record.id_venta, d.id_detalle_venta || d.id_detalle)}
+                                                                    onConfirm={() => {
+                                                                        if (record.tipo_transaccion === 'Venta') handleRemoveItem(record.id_venta, d.id_detalle_venta || d.id_detalle || d.id_detalle_pedido);
+                                                                        else handleRemoveItemPedido(d.id_detalle);
+                                                                    }}
                                                                     okText="Sí"
                                                                     cancelText="No"
                                                                     okButtonProps={{ danger: true }}
@@ -854,11 +890,15 @@ const ReportesVentas = () => {
                                             >
                                                 Imprimir
                                             </Button>
-                                            {record.tipo_transaccion === 'Venta' && !isCancelled && (
+                                            {((record.tipo_transaccion === 'Venta' && !isCancelled) || 
+                                              (record.tipo_transaccion === 'Pedido' && record.estado !== 'Cancelado')) && (
                                                 <Popconfirm
-                                                    title="¿Cancelar esta venta?"
+                                                    title={record.tipo_transaccion === 'Venta' ? "¿Cancelar esta venta?" : "¿Cancelar este pedido?"}
                                                     description="Se repondrá el stock."
-                                                    onConfirm={() => handleCancelVenta(record.id_venta)}
+                                                    onConfirm={() => {
+                                                        if (record.tipo_transaccion === 'Venta') handleCancelVenta(record.id_venta);
+                                                        else handleCancelPedido(record.id_pedido);
+                                                    }}
                                                     okText="Sí, cancelar"
                                                     cancelText="No"
                                                     okButtonProps={{ danger: true }}

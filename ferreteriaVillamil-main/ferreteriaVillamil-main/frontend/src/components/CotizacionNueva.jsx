@@ -293,21 +293,29 @@ const CotizacionNueva = () => {
 
             const fileName = `Cotizacion_${clientName || "General"}_${date.replace(/\//g, '-')}.pdf`;
             
-            // Finalize UI state
+            // Clean up UI state first
             setCart([]);
             setClientName("");
             setSearchText("");
             setIsSaving(false);
 
-            // Execute PDF and Navigation
-            doc.save(fileName);
-            navigate('/admin/cotizaciones');
+            // Navigate FIRST to clear the view
+            navigate('/admin/cotizaciones', { replace: true });
+
+            // Trigger download after a slight delay to allow navigation to settle
+            setTimeout(() => {
+                try {
+                    doc.save(fileName);
+                } catch (e) {
+                    console.error("Delayed PDF download failed:", e);
+                }
+            }, 800);
 
         } catch (pdfError) {
             console.error("Error generating PDF:", pdfError);
             message.error("Cotización guardada, pero hubo un error al generar el PDF");
             setIsSaving(false);
-            navigate('/admin/cotizaciones');
+            navigate('/admin/cotizaciones', { replace: true });
         }
     };
 

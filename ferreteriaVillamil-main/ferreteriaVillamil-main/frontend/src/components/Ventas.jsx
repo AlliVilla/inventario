@@ -159,107 +159,144 @@ const Ventas = () => {
         const doc = new jsPDF();
         const date = new Date().toLocaleDateString();
         const pageHeight = doc.internal.pageSize.height;
-        const pageWidth = doc.internal.pageSize.width;
-        const reservedSpace = 95; 
+        const footerHeight = 35; // Espacio para firma y agradecimientos
+        const totalsHeight = 50; // Espacio para el desglose de totales
+        const reservedSpace = totalsHeight + footerHeight + 10;
         const totalsY = pageHeight - reservedSpace;
 
-        const drawHeader = (pageDoc) => {
-            pageDoc.addImage(logo, 'PNG', 20, 12, 45, 30);
-            pageDoc.setFontSize(16);
-            pageDoc.setTextColor(0, 0, 0);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("INVERSIONES MERCANTILES VILLAMIL", 130, 20, { align: "center" });
-            pageDoc.setFontSize(10);
-            pageDoc.setFont("helvetica", "normal");
-            pageDoc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 130, 26, { align: "center" });
-            pageDoc.text("Tres Cuadras Arriba del Centro de Salud", 130, 31, { align: "center" });
-            pageDoc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 130, 36, { align: "center" });
-            pageDoc.text("Correo: ferrevillamil@gmail.com", 130, 41, { align: "center" });
-            pageDoc.setFontSize(14);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("FACTURA DE VENTA", 170, 55, { align: "right" });
-            pageDoc.setFontSize(12);
-            pageDoc.text(`N° FAC-${String(lastSaleData.id_venta).padStart(7, '0')}`, 170, 62, { align: "right" });
-            pageDoc.setFontSize(11);
-            pageDoc.setFont("helvetica", "normal");
-            pageDoc.text(`Cliente: ${clientName || "Consumidor Final"}`, 20, 75);
-            pageDoc.text(`Fecha: ${date}`, 140, 75);
+        // Función para dibujar el encabezado en cada página
+        const drawHeader = () => {
+            doc.addImage(logo, 'PNG', 10, 7, 65, 43); // Logo XXL
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("times", "bold");
+            doc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
+
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
+            doc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
+            doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
+            doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
+
+            doc.setFontSize(12);
+            doc.setFont("times", "bold");
+            doc.text("FACTURA DE VENTA", 200, 46, { align: "right" });
+            doc.setFontSize(12);
+            doc.text(`N° FAC-${String(lastSaleData.id_venta).padStart(7, '0')}`, 200, 54, { align: "right" });
+
+            // Línea divisora perfectamente centrada
+            doc.setDrawColor(0, 0, 0);
+            doc.line(10, 60, 200, 60);
+
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 68);
+            doc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
         };
 
-        const drawTerms = (pageDoc, yPos) => {
-            pageDoc.setFontSize(8);
-            pageDoc.setTextColor(100, 100, 100);
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("TÉRMINOS Y CONDICIONES:", 20, yPos);
-            pageDoc.setFontSize(7);
-            pageDoc.setFont("helvetica", "normal");
-            const terms = [
-                "1. Los precios están sujetos a cambios sin previo aviso.",
-                "2. Esta factura es un compromiso de compra.",
-                "3. La entrega de materiales está sujeta a disponibilidad de inventario.",
-                "4. Favor confirmar existencias con su vendedor."
-            ];
-            terms.forEach((line, i) => pageDoc.text(line, 20, yPos + 5 + (i * 4)));
-            pageDoc.setFont("helvetica", "bold");
-            pageDoc.text("¡ES UN PLACER SERVIRLE!", 20, yPos + 25);
+        // Función para dibujar los términos y condiciones fijos
+        const drawTerms = (yPos) => {
+            doc.setFontSize(9); // Un poco mas grande
+            doc.setTextColor(0, 0, 0); // Negro Puro
+            doc.setFont("times", "bold");
+            doc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
+            doc.setFontSize(8); // Un poco mas grande
+            doc.setFont("times", "normal");
+            doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
+            doc.text("2. Esta factura es un compromiso de compra.", 10, yPos + 9);
+            doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
+            doc.setFont("times", "bold");
+            doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
         };
 
-        const tableColumn = ["Cant.", "Descripción", "Precio Unit.", "IVA", "Total"];
+        const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
         const tableRows = lastSaleData.items.map(item => [
             item.cantidad,
             item.nombre,
             parseFloat(item.precio_unitario).toFixed(2),
-            "15%",
+            "0.00",
             parseFloat(item.subtotal).toFixed(2)
         ]);
 
         autoTable(doc, {
-            startY: 82,
+            startY: 75,
             head: [tableColumn],
             body: tableRows,
             theme: 'plain',
             headStyles: {
-                fillColor: [22, 50, 105],
-                textColor: [255, 255, 255],
+                fillColor: [180, 180, 180],
+                textColor: [0, 0, 0], // Texto negro como pediste
                 fontStyle: 'bold',
                 halign: 'center',
-                lineWidth: 0.1
+                lineWidth: 0.5,
+                lineColor: [255, 255, 255] // Vuelta al blanco original para las lineas
             },
             columnStyles: {
-                0: { halign: 'center', cellWidth: 20 },
+                0: { halign: 'center', cellWidth: 25 },
                 1: { halign: 'left' },
-                2: { halign: 'right', cellWidth: 35 },
-                3: { halign: 'center', cellWidth: 20 },
-                4: { halign: 'right', cellWidth: 35 }
+                2: { halign: 'right', cellWidth: 30 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', cellWidth: 30 }
             },
-            styles: { fontSize: 9, cellPadding: 3, textColor: [50, 50, 50] },
-            margin: { left: 20, right: 20, bottom: reservedSpace, top: 80 },
-            didDrawPage: () => drawHeader(doc)
+            styles: {
+                font: 'times',
+                fontSize: 11,
+                cellPadding: 2,
+                minCellHeight: 6,
+                textColor: [0, 0, 0]
+            },
+            margin: { left: 10, right: 10, bottom: 95, top: 78 },
+            didDrawPage: (data) => {
+                drawHeader();
+                drawTerms(pageHeight - 80);
+            }
         });
 
-        const total = parseFloat(lastSaleData.total);
-        const subtotal = total / 1.15;
-        const isv = total - subtotal;
-        const totalX = 130;
-        const valueX = 190;
+        // --- Resumen Económico (Fijo al final de la última página) ---
+        let lastY = doc.lastAutoTable.finalY;
+        if (lastY > totalsY) {
+            doc.addPage();
+            drawHeader();
+            drawTerms(pageHeight - 80);
+        }
+        doc.setPage(doc.internal.getNumberOfPages());
 
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text("Importe Gravado 15%:", totalX, totalsY + 10);
-        doc.text(subtotal.toFixed(2), valueX, totalsY + 10, { align: "right" });
-        doc.text("I.S.V. 15%:", totalX, totalsY + 20);
-        doc.text(isv.toFixed(2), valueX, totalsY + 20, { align: "right" });
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text("TOTAL A PAGAR L.", totalX, totalsY + 35);
-        doc.text(total.toFixed(2), valueX, totalsY + 35, { align: "right" });
+        // Totales (derecha)
+        const totalX = 135; // Un poco mas hacia la derecha para balancear mejor
+        const valueX = 200; // Margen exacto 10mm
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        const subtotal = parseFloat(lastSaleData.total);
+        const gravado15 = subtotal / 1.15;
+        const isv15 = subtotal - gravado15;
 
-        drawTerms(doc, pageHeight - 55);
+        doc.text("Importe Exonerado:", totalX, totalsY + 5);
+        doc.text("0.00", valueX, totalsY + 5, { align: "right" });
 
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text("Firma: ____________________________", 20, pageHeight - 20);
-        doc.text("¡Gracias por su Preferencia!", 190, pageHeight - 20, { align: "right" });
+        doc.text("Importe Exento:", totalX, totalsY + 12);
+        doc.text("0.00", valueX, totalsY + 12, { align: "right" });
+
+        doc.text("Importe Gravado 15%:", totalX, totalsY + 19);
+        doc.text(gravado15.toFixed(2), valueX, totalsY + 19, { align: "right" });
+
+        doc.text("Importe Gravado 18%:", totalX, totalsY + 26);
+        doc.text("0.00", valueX, totalsY + 26, { align: "right" });
+
+        doc.text("I.S.V. 15%:", totalX, totalsY + 33);
+        doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
+
+        doc.setFont("times", "bold");
+        doc.text("Total A Pagar L.", totalX, totalsY + 42);
+        doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
+
+        // --- Pie de página (Fijo al final) ---
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("times", "normal");
+        doc.text("Firma: ________________________________________", 10, pageHeight - 20); // Margen 10mm exacto
+        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 20, { align: "right" });
 
         return doc;
     };

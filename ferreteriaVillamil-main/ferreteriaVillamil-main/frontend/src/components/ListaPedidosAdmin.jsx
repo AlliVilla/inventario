@@ -210,9 +210,9 @@ function ListaPedidosAdmin() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col justify-between items-end gap-2">
+                  <div className="flex flex-col justify-between sm:items-end gap-3 mt-2 sm:mt-0">
                     <span
-                      className="px-4 sm:px-6 py-1 rounded-full text-white font-medium shadow-lg text-sm sm:text-base"
+                      className="px-4 py-1 rounded-full text-white font-semibold shadow-sm text-xs sm:text-sm self-start sm:self-end"
                       style={{
                         backgroundColor: handleEstadoColor(pedido.estado),
                       }}
@@ -220,10 +220,10 @@ function ListaPedidosAdmin() {
                       {pedido.estado}
                     </span>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 sm:justify-end mt-2">
                       <button
                         onClick={() => handleVerDetalles(pedido)}
-                        className="px-3 py-1 text-white font-medium text-xs sm:text-sm rounded"
+                        className="px-3 py-1.5 text-white font-medium text-xs sm:text-sm rounded"
                         title="Ver detalles del pedido"
                         style={{ backgroundColor: "#163269" }}
                       >
@@ -233,9 +233,9 @@ function ListaPedidosAdmin() {
                       {(pedido.estado !== "Entregado" && pedido.estado !== "Cancelado") && (
                         <button
                           onClick={() => navigate(`/admin/pedidos/editar/${pedido.id_pedido}`)}
-                          className="px-3 py-1 text-white font-medium text-xs sm:text-sm rounded"
+                          className="px-3 py-1.5 text-white font-medium text-xs sm:text-sm rounded"
                           title="Editar pedido"
-                          style={{ backgroundColor: "#1e40af" }} // Un azul diferente para visualizar
+                          style={{ backgroundColor: "#1e40af" }}
                         >
                           <EditOutlined /> Editar
                         </button>
@@ -243,7 +243,7 @@ function ListaPedidosAdmin() {
 
                       <button
                         onClick={() => handleCancelarPedido(pedido)}
-                        className="px-3 py-1 text-white font-medium text-xs sm:text-sm rounded"
+                        className="px-3 py-1.5 text-white font-medium text-xs sm:text-sm rounded"
                         title="Cancelar pedido"
                         style={{ backgroundColor: "#BC7D3B" }}
                       >
@@ -252,11 +252,11 @@ function ListaPedidosAdmin() {
 
                       <button
                         onClick={() => handleOpenModal(pedido)}
-                        className="px-3 py-1 text-white font-medium"
+                        className="px-3 py-1.5 border hover:bg-gray-50 flex items-center justify-center rounded"
                         title="Asignar repartidor"
                       >
                         <SelectOutlined
-                          className="text-lg sm:text-2xl"
+                          className="text-lg"
                           style={{ color: "#163269" }}
                         />
                       </button>

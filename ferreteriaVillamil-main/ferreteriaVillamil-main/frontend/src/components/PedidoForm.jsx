@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Avatar, message, Modal, Input, Button, Table, Card, Row, Col, Typography, InputNumber, Divider, Space, List, Tag, Empty } from 'antd';
-import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, UserOutlined, PhoneOutlined, IdcardOutlined, EnvironmentOutlined, MessageOutlined, PlusOutlined, ArrowLeftOutlined, ExpandOutlined } from '@ant-design/icons';
+import { Avatar, message, Modal, Input, Button, Table, Card, Row, Col, Typography, InputNumber, Divider, Space, List, Tag, Empty, Steps } from 'antd';
+import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, UserOutlined, PhoneOutlined, IdcardOutlined, EnvironmentOutlined, MessageOutlined, PlusOutlined, ArrowLeftOutlined, ExpandOutlined, RightOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -32,6 +32,7 @@ function NuevoPedidoForm() {
     const [cantidad, setCantidad] = useState(1);
     const [detalles, setDetalles] = useState([]);
     const [isCartModalVisible, setIsCartModalVisible] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
 
     const fetchArticulos = async (searchQuery = '') => {
         try {
@@ -344,141 +345,158 @@ function NuevoPedidoForm() {
     };
 
     return (
-        <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
-            {/* Header Superior */}
-            <div style={{
-                marginBottom: '24px',
-                background: '#fff',
-                padding: '20px 30px',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div className="p-4 md:p-6 bg-[#f0f2f5] min-h-screen">
+            {/* Encabezado Superior */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between bg-white px-4 md:px-8 py-4 md:py-6 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] mb-4 md:mb-6 gap-4">
+                <div className="flex items-center gap-3 md:gap-5">
                     <Button
                         icon={<ArrowLeftOutlined />}
                         onClick={handleCancel}
                         shape="circle"
                         size="large"
-                        style={{ border: 'none', background: '#f5f5f5' }}
+                        className="bg-gray-100 border-none shrink-0"
                     />
                     <div>
-                        <Title level={3} style={{ color: '#163269', margin: 0 }}>
+                        <h2 className="text-xl md:text-2xl font-bold text-[#163269] m-0">
                             {isEditing ? 'Editar Pedido' : 'Nuevo Pedido'}
-                        </Title>
-                        <Text type="secondary">
-                            {isEditing ? 'Modifica los datos del pedido y productos' : 'Selecciona productos y completa los datos del cliente'}
-                        </Text>
+                        </h2>
+                        <span className="text-xs md:text-sm text-gray-500 line-clamp-1">
+                            {isEditing ? 'Modifica los datos' : 'Sigue los pasos para completar'}
+                        </span>
                     </div>
                 </div>
 
-                <Input
-                    placeholder="Buscar producto por nombre o código..."
-                    prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-                    size="large"
-                    allowClear
-                    onChange={(e) => handleSearch(e.target.value)}
-                    style={{ width: '400px', borderRadius: '12px' }}
+                {currentStep === 0 && (
+                    <Input
+                        placeholder="Buscar producto..."
+                        prefix={<SearchOutlined className="text-gray-400" />}
+                        size="large"
+                        allowClear
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full md:w-[400px] rounded-xl"
+                    />
+                )}
+            </div>
+
+            {/* Indicador de Avance (Wizard) */}
+            <div className="bg-white px-4 md:px-10 py-5 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.05)] mb-6 mx-auto w-full max-w-4xl">
+                <Steps
+                    current={currentStep}
+                    onChange={(s) => setCurrentStep(s)}
+                    items={[
+                        { title: 'Productos', description: 'Seleccionar del catálogo' },
+                        { title: 'Resumen y Entrega', description: 'Datos del cliente' }
+                    ]}
                 />
             </div>
 
-            <Row gutter={24}>
-                {/* Panel Central: Grid de Productos */}
-                <Col span={15}>
-                    <div style={{
-                        height: 'calc(100vh - 180px)',
-                        overflowY: 'auto',
-                        paddingRight: '8px'
-                    }} className="custom-scroll">
-                        {filteredArticulos.length > 0 ? (
-                            <Row gutter={[16, 16]}>
-                                {filteredArticulos.map(item => (
-                                    <Col span={8} key={item.id_articulo}>
-                                        <Card
-                                            hoverable
-                                            style={{
-                                                borderRadius: '16px',
-                                                overflow: 'hidden',
-                                                border: 'none',
-                                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                                            }}
-                                            styles={{ body: { padding: '12px' } }}
-                                            cover={
-                                                <div style={{
-                                                    height: '140px',
-                                                    background: '#f8fafc',
-                                                    position: 'relative',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <img
-                                                        alt={item.nombre}
-                                                        src={getImageUrl(item.foto_url)}
-                                                        style={{
-                                                            maxHeight: '100%',
-                                                            maxWidth: '100%',
-                                                            objectFit: 'contain',
-                                                            padding: '10px'
-                                                        }}
-                                                        onError={(e) => {
-                                                            e.target.src = 'https://via.placeholder.com/150?text=Sin+Imagen';
-                                                        }}
-                                                    />
+            <Row gutter={[24, 24]}>
+                {/* ---------- Paso 0: Catálogo de Productos ---------- */}
+                {currentStep === 0 && (
+                    <Col span={24}>
+                        <div className="overflow-y-auto px-1 md:px-4 custom-scroll h-auto max-h-[60vh] md:max-h-max md:h-[calc(100vh-280px)]">
+                            {filteredArticulos.length > 0 ? (
+                                <Row gutter={[16, 16]}>
+                                    {filteredArticulos.map(item => (
+                                        <Col xs={12} sm={8} lg={6} xl={4} key={item.id_articulo}>
+                                            <Card
+                                                hoverable
+                                                style={{
+                                                    borderRadius: '16px',
+                                                    overflow: 'hidden',
+                                                    border: 'none',
+                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                                                }}
+                                                styles={{ body: { padding: '12px' } }}
+                                                cover={
                                                     <div style={{
-                                                        position: 'absolute',
-                                                        top: '8px',
-                                                        right: '8px'
+                                                        height: '140px',
+                                                        background: '#f8fafc',
+                                                        position: 'relative',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center'
                                                     }}>
-                                                        <Tag color={item.cantidad_existencia > 10 ? 'green' : item.cantidad_existencia > 0 ? 'orange' : 'red'} style={{ borderRadius: '6px' }}>
-                                                            {item.cantidad_existencia} en stock
-                                                        </Tag>
+                                                        <img
+                                                            alt={item.nombre}
+                                                            src={getImageUrl(item.foto_url)}
+                                                            style={{
+                                                                maxHeight: '100%',
+                                                                maxWidth: '100%',
+                                                                objectFit: 'contain',
+                                                                padding: '10px'
+                                                            }}
+                                                            onError={(e) => {
+                                                                e.target.src = 'https://via.placeholder.com/150?text=Sin+Imagen';
+                                                            }}
+                                                        />
+                                                        <div style={{
+                                                            position: 'absolute',
+                                                            top: '8px',
+                                                            right: '8px'
+                                                        }}>
+                                                            <Tag color={item.cantidad_existencia > 10 ? 'green' : item.cantidad_existencia > 0 ? 'orange' : 'red'} style={{ borderRadius: '6px' }}>
+                                                                {item.cantidad_existencia} en stock
+                                                            </Tag>
+                                                        </div>
                                                     </div>
+                                                }
+                                            >
+                                                <div style={{ marginBottom: '12px' }}>
+                                                    <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1f2937', height: '40px', overflow: 'hidden' }}>
+                                                        {item.nombre}
+                                                    </div>
+                                                    <Text type="secondary" style={{ fontSize: '0.75rem' }}>SKU: {item.codigo}</Text>
                                                 </div>
-                                            }
-                                        >
-                                            <div style={{ marginBottom: '12px' }}>
-                                                <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1f2937', height: '40px', overflow: 'hidden' }}>
-                                                    {item.nombre}
+
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#163269' }}>
+                                                        L. {parseFloat(item.precio).toLocaleString()}
+                                                    </span>
+                                                    <Button
+                                                        type="primary"
+                                                        shape="circle"
+                                                        icon={<PlusOutlined />}
+                                                        onClick={() => agregarArticulo(item)}
+                                                        disabled={item.cantidad_existencia <= 0}
+                                                        style={{ background: '#163269' }}
+                                                    />
                                                 </div>
-                                                <Text type="secondary" style={{ fontSize: '0.75rem' }}>SKU: {item.codigo}</Text>
-                                            </div>
+                                            </Card>
+                                        </Col>
+                                    ))}
+                                </Row>
+                            ) : (
+                                <Card style={{ textAlign: 'center', padding: '60px', borderRadius: '16px' }}>
+                                    <Empty description="No se encontraron productos coincidentes" />
+                                </Card>
+                            )}
+                        </div>
 
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#163269' }}>
-                                                    L. {parseFloat(item.precio).toLocaleString()}
-                                                </span>
-                                                <Button
-                                                    type="primary"
-                                                    shape="circle"
-                                                    icon={<PlusOutlined />}
-                                                    onClick={() => agregarArticulo(item)}
-                                                    disabled={item.cantidad_existencia <= 0}
-                                                    style={{ background: '#163269' }}
-                                                />
-                                            </div>
-                                        </Card>
-                                    </Col>
-                                ))}
-                            </Row>
-                        ) : (
-                            <Card style={{ textAlign: 'center', padding: '60px', borderRadius: '16px' }}>
-                                <Empty description="No se encontraron productos coincidentes" />
-                            </Card>
-                        )}
-                    </div>
-                </Col>
+                        {/* Botón flotante o al final para avanzar */}
+                        <div className="flex justify-end mt-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <Button 
+                                type="primary" 
+                                size="large" 
+                                className="bg-[#163269] flex items-center h-12 text-lg font-bold px-8 rounded-xl"
+                                onClick={() => {
+                                    if(detalles.length === 0) {
+                                        message.warning("Debes agregar al menos un producto para continuar");
+                                    } else {
+                                        setCurrentStep(1);
+                                    }
+                                }}
+                            >
+                                Siguiente Paso ({detalles.length} productos) <RightOutlined />
+                            </Button>
+                        </div>
+                    </Col>
+                )}
 
-                {/* Panel Derecho: Resumen y Datos (Optimizado con scroll fijo) */}
-                <Col span={9}>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        height: 'calc(100vh - 140px)',
-                        gap: '15px'
-                    }}>
+                {/* ---------- Paso 1: Resumen y Datos ---------- */}
+                {currentStep === 1 && (
+                <Col span={24}>
+                    <div className="flex flex-col gap-4 min-h-[500px] h-auto pb-10 lg:pb-0 max-w-4xl mx-auto w-full">
                         {/* Datos Cliente - Compacto pero legible */}
                         <Card
                             title={<Title level={5} style={{ margin: 0 }}><UserOutlined /> Datos de Entrega</Title>}
@@ -495,8 +513,8 @@ function NuevoPedidoForm() {
                                     size="large"
                                     style={{ fontSize: '1.1rem', fontWeight: '600' }}
                                 />
-                                <Row gutter={10}>
-                                    <Col span={12}>
+                                <Row gutter={[10, 10]}>
+                                    <Col xs={24} sm={12}>
                                         <Input
                                             placeholder="Teléfono"
                                             name="cliente_telefono"
@@ -507,7 +525,7 @@ function NuevoPedidoForm() {
                                             style={{ fontSize: '1.1rem' }}
                                         />
                                     </Col>
-                                    <Col span={12}>
+                                    <Col xs={24} sm={12}>
                                         <Input
                                             placeholder="Identidad"
                                             name="cliente_identidad"
@@ -565,6 +583,7 @@ function NuevoPedidoForm() {
                                     pagination={false}
                                     rowKey="id_articulo"
                                     showHeader={false}
+                                    scroll={{ x: 400 }}
                                     columns={[
                                         {
                                             title: 'Producto',
@@ -679,28 +698,32 @@ function NuevoPedidoForm() {
                                     </div>
                                 </div>
 
-                                <Button
-                                    type="primary"
-                                    size="large"
-                                    block
-                                    onClick={handleSubmit}
-                                    style={{
-                                        height: '60px',
-                                        marginTop: '15px',
-                                        borderRadius: '12px',
-                                        background: '#BC7D3B',
-                                        fontSize: '1.4rem',
-                                        fontWeight: '800'
-                                    }}
-                                    loading={loading}
-                                    disabled={detalles.length === 0}
-                                >
-                                    {isEditing ? 'ACTUALIZAR PEDIDO' : 'GUARDAR PEDIDO'}
-                                </Button>
+                                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                                    <Button
+                                        size="large"
+                                        onClick={() => setCurrentStep(0)}
+                                        className="h-[60px] rounded-xl flex-1 text-lg font-bold border-2 border-gray-200"
+                                    >
+                                        Volver Atrás
+                                    </Button>
+
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        onClick={handleSubmit}
+                                        style={{ background: '#BC7D3B' }}
+                                        className="h-[60px] rounded-xl flex-1 text-lg font-bold border-none"
+                                        loading={loading}
+                                        disabled={detalles.length === 0}
+                                    >
+                                        {isEditing ? 'ACTUALIZAR PEDIDO' : 'GUARDAR PEDIDO'}
+                                    </Button>
+                                </div>
                             </div>
                         </Card>
                     </div>
                 </Col>
+                )}
             </Row>
 
             {/* Modal de Vista Ampliada (XL) */}

@@ -18,7 +18,8 @@ const CotizacionNueva = () => {
     const [previewModal, setPreviewModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-    const [activeTab, setActiveTab] = useState('inventory');
+    const [activeTab, setActiveTab ] = useState('inventory');
+    const [isSaving, setIsSaving] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -125,7 +126,8 @@ const CotizacionNueva = () => {
             return;
         }
 
-        const hide = message.loading("Guardando cotización...", 0);
+        setIsSaving(true);
+        const hide = message.loading({ content: "Guardando cotización...", key: 'saveCotizacion', duration: 0 });
 
         try {
             // Guardar en la base de datos
@@ -141,168 +143,170 @@ const CotizacionNueva = () => {
                 id_usuario_vendedor: usuarioLogueado?.id_usuario || usuarioLogueado?.id || 1
             };
 
-            await axios.post(`${import.meta.env.VITE_API_URL}/cotizaciones`, cotizacionData, {
+            await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/cotizaciones`, cotizacionData, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
-            hide();
-            message.success("Cotización guardada y lista para descargar");
+            message.success({ content: "Cotización guardada exitosamente", key: 'saveCotizacion' });
         } catch (error) {
-            hide();
             console.error("Error al guardar cotización:", error);
-            message.error("Error al guardar la cotización en el servidor");
+            message.error({ content: "Error al guardar la cotización en el servidor", key: 'saveCotizacion' });
+            setIsSaving(false);
             return; // No descargar PDF si falló el guardado
         }
-        const doc = new jsPDF();
-        const date = new Date().toLocaleDateString();
-        const pageHeight = doc.internal.pageSize.height;
-        const footerHeight = 35; // Espacio para firma y agradecimientos
-        const totalsHeight = 50; // Espacio para el desglose de totales
-        const reservedSpace = totalsHeight + footerHeight + 10;
-        const totalsY = pageHeight - reservedSpace;
 
-        // Función para dibujar el encabezado en cada página
-        const drawHeader = () => {
-            doc.addImage(FerreteriaLogo, 'PNG', 10, 7, 65, 43); // Logo XXL
-            doc.setFontSize(12);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("times", "bold");
-            doc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
+        // Proceder con la generación del PDF
+        try {
+            const doc = new jsPDF();
+            const date = new Date().toLocaleDateString();
+            const pageHeight = doc.internal.pageSize.height;
+            const footerHeight = 35; 
+            const totalsHeight = 50; 
+            const reservedSpace = totalsHeight + footerHeight + 10;
+            const totalsY = pageHeight - reservedSpace;
 
-            doc.setFontSize(10);
-            doc.setFont("times", "normal");
-            doc.setTextColor(0, 0, 0);
-            doc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
-            doc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
-            doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
-            doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
+            const drawHeader = () => {
+                doc.addImage(FerreteriaLogo, 'PNG', 10, 7, 65, 43);
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("times", "bold");
+                doc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
 
-            doc.setFontSize(12);
-            doc.setFont("times", "bold");
-            doc.text("COTIZACIÓN", 200, 46, { align: "right" });
-            doc.setFontSize(12);
-            doc.text(`N° (Provisional)`, 200, 54, { align: "right" });
+                doc.setFontSize(10);
+                doc.setFont("times", "normal");
+                doc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
+                doc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
+                doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
+                doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
 
-            // Línea divisora perfectamente centrada
-            doc.setDrawColor(0, 0, 0);
-            doc.line(10, 60, 200, 60);
+                doc.setFontSize(12);
+                doc.setFont("times", "bold");
+                doc.text("COTIZACIÓN", 200, 46, { align: "right" });
+                doc.setFontSize(12);
+                doc.text(`N° (Provisional)`, 200, 54, { align: "right" });
 
-            doc.setFontSize(10);
-            doc.setFont("times", "normal");
-            doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 68);
-            doc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
-        };
+                doc.setDrawColor(0, 0, 0);
+                doc.line(10, 60, 200, 60);
 
-        // Función para dibujar los términos y condiciones fijos
-        const drawTerms = (yPos) => {
-            doc.setFontSize(9); // Un poco mas grande
-            doc.setTextColor(0, 0, 0); // Negro Puro
-            doc.setFont("times", "bold");
-            doc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
-            doc.setFontSize(8); // Un poco mas grande
-            doc.setFont("times", "normal");
-            doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
-            doc.text("2. Esta cotización tiene una validez de 2 días calendario.", 10, yPos + 9);
-            doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
-            doc.setFont("times", "bold");
-            doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
-        };
+                doc.setFontSize(10);
+                doc.setFont("times", "normal");
+                doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 68);
+                doc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
+            };
 
-        const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
-        const tableRows = cart.map(item => [
-            item.cantidad,
-            item.nombre,
-            parseFloat(item.precio_unitario).toFixed(2),
-            "0.00",
-            parseFloat(item.subtotal).toFixed(2)
-        ]);
+            const drawTerms = (yPos) => {
+                doc.setFontSize(9);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("times", "bold");
+                doc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
+                doc.setFontSize(8);
+                doc.setFont("times", "normal");
+                doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
+                doc.text("2. Esta cotización tiene una validez de 2 días calendario.", 10, yPos + 9);
+                doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
+                doc.setFont("times", "bold");
+                doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
+            };
 
-        autoTable(doc, {
-            startY: 75,
-            head: [tableColumn],
-            body: tableRows,
-            theme: 'plain',
-            headStyles: {
-                fillColor: [180, 180, 180],
-                textColor: [0, 0, 0], // Texto negro como pediste
-                fontStyle: 'bold',
-                halign: 'center',
-                lineWidth: 0.5,
-                lineColor: [255, 255, 255] // Vuelta al blanco original para las lineas
-            },
-            columnStyles: {
-                0: { halign: 'center', cellWidth: 25 },
-                1: { halign: 'left' },
-                2: { halign: 'right', cellWidth: 30 },
-                3: { halign: 'right', cellWidth: 35 },
-                4: { halign: 'right', cellWidth: 30 }
-            },
-            styles: {
-                font: 'times',
-                fontSize: 11,
-                cellPadding: 2,
-                minCellHeight: 6,
-                textColor: [0, 0, 0]
-            },
-            margin: { left: 10, right: 10, bottom: 95, top: 78 },
-            didDrawPage: (data) => {
+            const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
+            const tableRows = cart.map(item => [
+                item.cantidad,
+                item.nombre,
+                parseFloat(item.precio_unitario).toFixed(2),
+                "0.00",
+                parseFloat(item.subtotal).toFixed(2)
+            ]);
+
+            autoTable(doc, {
+                startY: 75,
+                head: [tableColumn],
+                body: tableRows,
+                theme: 'plain',
+                headStyles: {
+                    fillColor: [180, 180, 180],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    halign: 'center',
+                    lineWidth: 0.5,
+                    lineColor: [255, 255, 255]
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 25 },
+                    1: { halign: 'left' },
+                    2: { halign: 'right', cellWidth: 30 },
+                    3: { halign: 'right', cellWidth: 35 },
+                    4: { halign: 'right', cellWidth: 30 }
+                },
+                styles: {
+                    font: 'times',
+                    fontSize: 11,
+                    cellPadding: 2,
+                    minCellHeight: 6,
+                    textColor: [0, 0, 0]
+                },
+                margin: { left: 10, right: 10, bottom: 95, top: 78 },
+                didDrawPage: (data) => {
+                    drawHeader();
+                    drawTerms(pageHeight - 80);
+                }
+            });
+
+            const subtotal = getTotal();
+            const gravado15 = subtotal / 1.15;
+            const isv15 = subtotal - gravado15;
+
+            let lastY = doc.lastAutoTable.finalY;
+            if (lastY > totalsY) {
+                doc.addPage();
                 drawHeader();
                 drawTerms(pageHeight - 80);
             }
-        });
+            doc.setPage(doc.internal.getNumberOfPages());
 
-        // --- Resumen Económico (Fijo al final de la última página) ---
-        let lastY = doc.lastAutoTable.finalY;
-        if (lastY > totalsY) {
-            doc.addPage();
-            drawHeader();
-            drawTerms(pageHeight - 80);
+            const totalX = 135;
+            const valueX = 200;
+            doc.setFontSize(11);
+            doc.text("Importe Exonerado:", totalX, totalsY + 5);
+            doc.text("0.00", valueX, totalsY + 5, { align: "right" });
+            doc.text("Importe Exento:", totalX, totalsY + 12);
+            doc.text("0.00", valueX, totalsY + 12, { align: "right" });
+            doc.text("Importe Gravado 15%:", totalX, totalsY + 19);
+            doc.text(gravado15.toFixed(2), valueX, totalsY + 19, { align: "right" });
+            doc.text("Importe Gravado 18%:", totalX, totalsY + 26);
+            doc.text("0.00", valueX, totalsY + 26, { align: "right" });
+            doc.text("I.S.V. 15%:", totalX, totalsY + 33);
+            doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
+
+            doc.setFont("times", "bold");
+            doc.text("Total A Pagar L.", totalX, totalsY + 42);
+            doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
+
+            doc.setFontSize(11);
+            doc.setFont("times", "normal");
+            doc.text("Firma: ________________________________________", 10, pageHeight - 20);
+            doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
+            doc.text("La Cotización es un compromiso de precio por 15 días", 200, pageHeight - 20, { align: "right" });
+
+            const fileName = `Cotizacion_${clientName || "General"}_${date.replace(/\//g, '-')}.pdf`;
+            
+            // Finalize UI state
+            setCart([]);
+            setClientName("");
+            setSearchText("");
+            setIsSaving(false);
+
+            // Execute PDF and Navigation
+            doc.save(fileName);
+            navigate('/admin/cotizaciones');
+
+        } catch (pdfError) {
+            console.error("Error generating PDF:", pdfError);
+            message.error("Cotización guardada, pero hubo un error al generar el PDF");
+            setIsSaving(false);
+            navigate('/admin/cotizaciones');
         }
-        doc.setPage(doc.internal.getNumberOfPages());
-
-        // Totales (derecha)
-        const totalX = 135; // Un poco mas hacia la derecha para balancear mejor
-        const valueX = 200; // Margen exacto 10mm
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
-        const subtotal = getTotal();
-        const gravado15 = subtotal / 1.15;
-        const isv15 = subtotal - gravado15;
-
-        doc.text("Importe Exonerado:", totalX, totalsY + 5);
-        doc.text("0.00", valueX, totalsY + 5, { align: "right" });
-
-        doc.text("Importe Exento:", totalX, totalsY + 12);
-        doc.text("0.00", valueX, totalsY + 12, { align: "right" });
-
-        doc.text("Importe Gravado 15%:", totalX, totalsY + 19);
-        doc.text(gravado15.toFixed(2), valueX, totalsY + 19, { align: "right" });
-
-        doc.text("Importe Gravado 18%:", totalX, totalsY + 26);
-        doc.text("0.00", valueX, totalsY + 26, { align: "right" });
-
-        doc.text("I.S.V. 15%:", totalX, totalsY + 33);
-        doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
-
-        doc.setFont("times", "bold");
-        doc.text("Total A Pagar L.", totalX, totalsY + 42);
-        doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
-
-        // --- Pie de página (Fijo al final) ---
-        doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
-        doc.setFont("times", "normal");
-        doc.text("Firma: ________________________________________", 10, pageHeight - 20); // Margen 10mm exacto
-        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
-        doc.text("La Cotización es un compromiso de precio por 15 días", 200, pageHeight - 20, { align: "right" });
-
-        doc.save(`Cotizacion_${clientName || "General"}_${date.replace(/\//g, '-')}.pdf`);
-        setCart([]);
-        setClientName("");
-        setSearchText("");
-        navigate('/admin/cotizaciones');
     };
 
     const columns = [
@@ -641,19 +645,20 @@ const CotizacionNueva = () => {
                                     <Button
                                         type="primary"
                                         size="large"
-                                        disabled={cart.length === 0}
+                                        disabled={cart.length === 0 || isSaving}
+                                        loading={isSaving}
                                         onClick={generatePDF}
                                         icon={<FilePdfOutlined />}
                                         style={{
                                             flex: 2,
                                             color: '#ffffff',
-                                            backgroundColor: '#344b70ff',
+                                            backgroundColor: isSaving ? '#64748b' : '#344b70ff',
                                             height: isMobile ? '45px' : '50px',
                                             borderRadius: '10px',
                                             fontWeight: '600'
                                         }}
                                     >
-                                        {isMobile ? 'Guardar PDF' : 'Guardar y Exportar PDF'}
+                                        {isSaving ? 'Guardando...' : (isMobile ? 'Guardar PDF' : 'Guardar y Exportar PDF')}
                                     </Button>
                                 </div>
                             </div>

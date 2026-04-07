@@ -158,40 +158,148 @@ const CotizacionNueva = () => {
 
         const doc = new jsPDF();
         const date = new Date().toLocaleDateString();
+        const pageHeight = doc.internal.pageSize.height;
+        const footerHeight = 35; // Espacio para firma y agradecimientos
+        const totalsHeight = 50; // Espacio para el desglose de totales
+        const reservedSpace = totalsHeight + footerHeight + 10;
+        const totalsY = pageHeight - reservedSpace;
 
-        // Header
-        doc.addImage(FerreteriaLogo, 'PNG', 15, 10, 50, 30);
-        doc.setFontSize(18);
-        doc.text("Ferretería Villamil", 70, 20);
-        doc.setFontSize(10);
-        doc.text("Cotización de Productos", 70, 28);
-        doc.text(`Fecha: ${date}`, 70, 34);
-        doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 15, 50);
+        // Función para dibujar el encabezado en cada página
+        const drawHeader = () => {
+            doc.addImage(FerreteriaLogo, 'PNG', 10, 7, 65, 43); // Logo XXL
+            doc.setFontSize(12);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("times", "bold");
+            doc.text("INVERSIONES MERCANTILES VILLAMIL", 125, 16, { align: "center" });
 
-        const tableColumn = ["Producto", "Cantidad", "Precio Unit.", "Subtotal"];
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text("Colonia Pinto Calle Principal Naco Cortes. San Pedro Sula,", 125, 22, { align: "center" });
+            doc.text("Tres Cuadras Arriba del Centro de Salud", 125, 27, { align: "center" });
+            doc.text("R.T.N. 05011998149871  Tel. 95086231- 96096433", 125, 32, { align: "center" });
+            doc.text("Correo: ferrevillamil@gmail.com", 125, 37, { align: "center" });
+
+            doc.setFontSize(12);
+            doc.setFont("times", "bold");
+            doc.text("COTIZACIÓN", 200, 46, { align: "right" });
+            doc.setFontSize(12);
+            doc.text(`N° ${String(newId).padStart(7, '0')}`, 200, 54, { align: "right" });
+
+            // Línea divisora perfectamente centrada
+            doc.setDrawColor(0, 0, 0);
+            doc.line(10, 60, 200, 60);
+
+            doc.setFontSize(10);
+            doc.setFont("times", "normal");
+            doc.text(`Cliente: ${clientName || "Consumidor Final"}`, 10, 68);
+            doc.text(`Fecha:  ${date}`, 200, 68, { align: "right" });
+        };
+
+        // Función para dibujar los términos y condiciones fijos
+        const drawTerms = (yPos) => {
+            doc.setFontSize(9); // Un poco mas grande
+            doc.setTextColor(0, 0, 0); // Negro Puro
+            doc.setFont("times", "bold");
+            doc.text("TÉRMINOS Y CONDICIONES:", 10, yPos);
+            doc.setFontSize(8); // Un poco mas grande
+            doc.setFont("times", "normal");
+            doc.text("1. Los precios están sujetos a cambios sin previo aviso.", 10, yPos + 5);
+            doc.text("2. Esta cotización tiene una validez de 2 días calendario.", 10, yPos + 9);
+            doc.text("3. La entrega de materiales está sujeta a disponibilidad de inventario.", 10, yPos + 13);
+            doc.setFont("times", "bold");
+            doc.text("¡ES UN PLACER SERVIRLE!", 10, yPos + 25);
+        };
+
+        // --- Tabla de Productos ---
+        const tableColumn = ["Cantidad", "Descripción", "Precio Unit.", "Desc. Y Rebajas", "Total"];
         const tableRows = cart.map(item => [
-            item.nombre,
             item.cantidad,
-            `L. ${item.precio_unitario.toFixed(2)}`,
-            `L. ${item.subtotal.toFixed(2)}`
+            item.nombre,
+            item.precio_unitario.toFixed(2),
+            "0.00",
+            item.subtotal.toFixed(2)
         ]);
 
         autoTable(doc, {
-            startY: 60,
+            startY: 75,
             head: [tableColumn],
             body: tableRows,
-            theme: 'striped',
-            headStyles: { fillColor: [22, 50, 105] }
+            theme: 'plain',
+            headStyles: {
+                fillColor: [180, 180, 180],
+                textColor: [0, 0, 0], // Texto negro como pediste
+                fontStyle: 'bold',
+                halign: 'center',
+                lineWidth: 0.5,
+                lineColor: [255, 255, 255] // Vuelta al blanco original para las lineas
+            },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 25 },
+                1: { halign: 'left' },
+                2: { halign: 'right', cellWidth: 30 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', cellWidth: 30 }
+            },
+            styles: {
+                font: 'times',
+                fontSize: 11,
+                cellPadding: 2,
+                minCellHeight: 6,
+                textColor: [0, 0, 0]
+            },
+            margin: { left: 10, right: 10, bottom: 95, top: 78 },
+            didDrawPage: (data) => {
+                drawHeader();
+                drawTerms(pageHeight - 80);
+            }
         });
 
-        const finalY = doc.lastAutoTable.finalY + 10;
-        doc.setFontSize(12);
-        doc.text(`Total a Pagar: L. ${getTotal().toFixed(2)}`, 140, finalY);
+        // --- Resumen Económico (Fijo al final de la última página) ---
+        let lastY = doc.lastAutoTable.finalY;
+        if (lastY > totalsY) {
+            doc.addPage();
+            drawHeader();
+            drawTerms(pageHeight - 80);
+        }
+        doc.setPage(doc.internal.getNumberOfPages());
 
-        doc.save(`Cotizacion_${clientName || "General"}_${date.replace(/\//g, '-')}.pdf`);
-        setCart([]);
-        setClientName("");
-        setSearchText("");
+        // Totales (derecha)
+        const totalX = 135; // Un poco mas hacia la derecha para balancear mejor
+        const valueX = 200; // Margen exacto 10mm
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        const subtotal = getTotal();
+        const gravado15 = subtotal / 1.15;
+        const isv15 = subtotal - gravado15;
+
+        doc.text("Importe Exonerado:", totalX, totalsY + 5);
+        doc.text("0.00", valueX, totalsY + 5, { align: "right" });
+
+        doc.text("Importe Exento:", totalX, totalsY + 12);
+        doc.text("0.00", valueX, totalsY + 12, { align: "right" });
+
+        doc.text("Importe Gravado 15%:", totalX, totalsY + 19);
+        doc.text(gravado15.toFixed(2), valueX, totalsY + 19, { align: "right" });
+
+        doc.text("Importe Gravado 18%:", totalX, totalsY + 26);
+        doc.text("0.00", valueX, totalsY + 26, { align: "right" });
+
+        doc.text("I.S.V. 15%:", totalX, totalsY + 33);
+        doc.text(isv15.toFixed(2), valueX, totalsY + 33, { align: "right" });
+
+        doc.setFont("times", "bold");
+        doc.text("Total A Pagar L.", totalX, totalsY + 42);
+        doc.text(subtotal.toFixed(2), valueX, totalsY + 42, { align: "right" });
+
+        // --- Pie de página (Fijo al final) ---
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("times", "normal");
+        doc.text("Firma: ________________________________________", 10, pageHeight - 20); // Margen 10mm exacto
+        doc.text("¡Gracias por su Preferencia!", 200, pageHeight - 25, { align: "right" });
+        doc.text("La Cotización es un compromiso de precio por 15 días", 200, pageHeight - 20, { align: "right" });
+        doc.save(`Cotizacion_${clientName || 'Cliente'}_${date.replace(/\//g, '-')}.pdf`);
         navigate('/admin/cotizaciones');
     };
 

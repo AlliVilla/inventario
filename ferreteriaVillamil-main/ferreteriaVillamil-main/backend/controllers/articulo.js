@@ -182,38 +182,33 @@ const getAllItems = async (request, response) => {
 const getAllActiveItems = async (request, response) => {
     try {
         const { search, limit = 2000 } = request.query;
-        const lim = Math.min(parseInt(limit, 10) || 2000, 2000);
 
-        let where;
+        const where = { 
+            estado: { 
+                [Op.or]: ["Disponible", "disponible", "Activo", "activo"] 
+            } 
+        };
+
+        // Add search filter if provided
         if (search && search.trim()) {
             const searchTerm = search.trim().toLowerCase();
-            where = {
-                [Op.and]: [
-                    { estado: 'Disponible' },
-                    {
-                        [Op.or]: [
-                            sequelize.where(
-                                sequelize.fn('LOWER', sequelize.col('nombre')),
-                                { [Op.like]: `%${searchTerm}%` }
-                            ),
-                            sequelize.where(
-                                sequelize.fn('LOWER', sequelize.col('codigo')),
-                                { [Op.like]: `%${searchTerm}%` }
-                            )
-                        ]
-                    }
-                ]
-            };
-        } else {
-            where = { estado: 'Disponible' };
+            where[Op.or] = [
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('nombre')),
+                    { [Op.like]: `%${searchTerm}%` }
+                ),
+                sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('codigo')),
+                    { [Op.like]: `%${searchTerm}%` }
+                )
+            ];
         }
 
         const items = await Articulo.findAll({
             where,
-            limit: lim,
+            limit: parseInt(limit),
             order: [['nombre', 'ASC']],
-            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'cantidad_existencia', 'foto_url', 'estado'],
-            raw: true
+            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'cantidad_existencia', 'foto_url', 'estado']
         });
 
         return response.status(200).json({
@@ -222,16 +217,10 @@ const getAllActiveItems = async (request, response) => {
             count: items.length
         });
     } catch (error) {
-        console.error("DEBUG: Error details in getAllActiveItems:");
-        console.error("- Message:", error.message);
-        console.error("- Stack:", error.stack);
-        if (error.sql) console.error("- SQL:", error.sql);
-
+        console.error("Error in getAllActiveItems:", error);
         return response.status(500).json({
             status: "Error",
-            message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-            sql: process.env.NODE_ENV === 'development' ? error.sql : undefined
+            message: error.message
         })
     }
 }

@@ -11,7 +11,7 @@ module.exports = (sequelize, DataTypes) => {
     stock_minimo: DataTypes.DECIMAL(10, 2),
     proveedor: DataTypes.STRING,
     foto_url: { type: DataTypes.STRING, allowNull: true },
-    estado: DataTypes.ENUM('Disponible', 'No Disponible'),
+    estado: { type: DataTypes.STRING(32), allowNull: true },
     fecha_creacion: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     fecha_actualizacion: DataTypes.DATE
   }, {

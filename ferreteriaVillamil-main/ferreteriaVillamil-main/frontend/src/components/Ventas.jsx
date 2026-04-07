@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Input, List, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Modal, Badge, Divider } from 'antd';
+import { Input, Avatar, Button, Table, Card, Row, Col, Typography, message, InputNumber, Modal, Badge, Divider } from 'antd';
 import { ShoppingCartOutlined, SearchOutlined, DeleteOutlined, SaveOutlined, UserOutlined, PlusOutlined, MinusOutlined, EyeOutlined, FilePdfOutlined, PrinterOutlined, CheckCircleFilled } from '@ant-design/icons';
 import axios from 'axios';
 import { jsPDF } from 'jspdf';
@@ -64,7 +64,12 @@ const Ventas = () => {
             }
         } catch (error) {
             console.error("Error cargando artículos:", error);
-            message.error("Error al cargar inventario");
+            if (error.response) {
+                console.error("Detalles del error del servidor:", error.response.data);
+                message.error(`Error: ${error.response.data.message || "Error al cargar inventario"}`);
+            } else {
+                message.error("Error al cargar inventario (Sin respuesta del servidor)");
+            }
         }
     };
 
@@ -455,12 +460,16 @@ const Ventas = () => {
                         />
 
                         <div style={{ flex: 1, overflowY: isMobile ? 'visible' : 'auto' }}>
-                            <List
-                                grid={{ gutter: 16, xs: 1, sm: 1, md: 2, lg: 2, xl: 2, xxl: 2 }}
-                                dataSource={filteredArticulos}
-                                renderItem={item => (
-                                    <List.Item>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                                    gap: 16
+                                }}
+                            >
+                                {filteredArticulos.map((item) => (
                                         <Card
+                                            key={item.id_articulo}
                                             hoverable
                                             style={{
                                                 borderRadius: '16px',
@@ -574,9 +583,8 @@ const Ventas = () => {
                                                 </Button>
                                             </div>
                                         </Card>
-                                    </List.Item>
-                                )}
-                            />
+                                ))}
+                            </div>
                         </div>
                     </Card>
                 </Col>

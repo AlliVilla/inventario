@@ -74,3 +74,42 @@ select:focus-visible {
 * {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
+
+/* Mobile-friendly DatePicker popup */
+@media (max-width: 767px) {
+  .ant-picker-dropdown {
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: 95vw !important;
+  }
+  .ant-picker-panel-container {
+    max-width: 95vw !important;
+    overflow-x: auto !important;
+  }
+  .ant-picker-panels {
+    flex-direction: column !important;
+  }
+  .ant-picker-panel {
+    width: 100% !important;
+    max-width: 320px !important;
+  }
+  .ant-picker-date-panel {
+    width: 100% !important;
+  }
+  .ant-picker-body {
+    padding: 8px 6px !important;
+  }
+  .ant-picker-content {
+    width: 100% !important;
+  }
+  .ant-picker-content th,
+  .ant-picker-content td {
+    min-width: 32px !important;
+    padding: 2px !important;
+  }
+  .ant-picker-cell-inner {
+    min-width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+  }
+}

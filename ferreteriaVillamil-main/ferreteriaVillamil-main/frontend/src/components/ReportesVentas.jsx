@@ -3,7 +3,7 @@ import { Card, Table, DatePicker, Row, Col, Typography, Statistic, message, Tag,
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logo from '../assets/LogoFerreteriaVillamil.png';
-import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined, CloseCircleOutlined, PrinterOutlined } from '@ant-design/icons';
+import { AreaChartOutlined, DollarOutlined, ShoppingCartOutlined, FallOutlined, CloseCircleOutlined, PrinterOutlined, ClearOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import moment from 'moment';
 
@@ -480,11 +480,13 @@ const ReportesVentas = () => {
                     <h1 className="text-2xl md:text-3xl font-bold text-[#163269]">Reportes Financieros</h1>
                     <p className="text-sm md:text-base text-gray-500 mt-1">Analítica de ventas y rendimiento del negocio</p>
                 </div>
-                <div className="w-full md:w-auto">
+                {/* Desktop: RangePicker */}
+                <div className="hidden md:flex md:items-center md:gap-2 w-auto">
                     <RangePicker
                         value={dateRange}
                         onChange={handleDateFilter}
-                        className="w-full md:w-auto py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:border-[#163269] transition-colors"
+                        inputReadOnly={true}
+                        className="w-auto py-2 px-4 border border-gray-300 rounded-lg shadow-sm hover:border-[#163269] transition-colors"
                         format="DD/MM/YYYY"
                         presets={[
                             { label: 'Hoy', value: [moment().startOf('day'), moment().endOf('day')] },
@@ -493,6 +495,81 @@ const ReportesVentas = () => {
                             { label: 'Este Mes', value: [moment().startOf('month'), moment().endOf('month')] },
                         ]}
                     />
+                    <Button
+                        type="text"
+                        icon={<ClearOutlined />}
+                        onClick={() => handleDateFilter(null)}
+                        className="text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                        title="Limpiar filtros"
+                    >
+                        Limpiar
+                    </Button>
+                </div>
+                {/* Mobile: Native date inputs + quick presets */}
+                <div className="md:hidden w-full flex flex-col gap-3">
+                    <div className="flex gap-2 flex-wrap">
+                        {[
+                            { label: 'Hoy', value: [moment().startOf('day'), moment().endOf('day')] },
+                            { label: 'Ayer', value: [moment().subtract(1, 'days').startOf('day'), moment().subtract(1, 'days').endOf('day')] },
+                            { label: 'Semana', value: [moment().startOf('week'), moment().endOf('week')] },
+                            { label: 'Mes', value: [moment().startOf('month'), moment().endOf('month')] },
+                        ].map(preset => (
+                            <button
+                                key={preset.label}
+                                onClick={() => handleDateFilter(preset.value)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                                    dateRange &&
+                                    dateRange[0].format('YYYY-MM-DD') === preset.value[0].format('YYYY-MM-DD') &&
+                                    dateRange[1].format('YYYY-MM-DD') === preset.value[1].format('YYYY-MM-DD')
+                                        ? 'bg-[#163269] text-white border-[#163269]'
+                                        : 'bg-white text-gray-600 border-gray-300 hover:border-[#163269]'
+                                }`}
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => handleDateFilter(null)}
+                            className="px-3 py-1.5 rounded-full text-xs font-semibold border border-red-300 text-red-500 bg-red-50 hover:bg-red-100 transition-all flex items-center gap-1"
+                        >
+                            <ClearOutlined className="text-[10px]" /> Limpiar
+                        </button>
+                    </div>
+                    <div className="flex gap-1.5 items-center overflow-hidden">
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-gray-500 font-medium mb-0.5 block">Desde</label>
+                            <input
+                                type="date"
+                                value={dateRange ? dateRange[0].format('YYYY-MM-DD') : ''}
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const start = moment(e.target.value).startOf('day');
+                                        const currentEnd = dateRange ? moment(dateRange[1]).endOf('day') : moment(e.target.value).endOf('day');
+                                        const end = start.isAfter(currentEnd) ? moment(e.target.value).endOf('day') : currentEnd;
+                                        handleDateFilter([start, end]);
+                                    }
+                                }}
+                                className="w-full py-1.5 px-2 border border-gray-300 rounded-lg shadow-sm text-xs bg-white focus:border-[#163269] focus:ring-1 focus:ring-[#163269] outline-none"
+                            />
+                        </div>
+                        <span className="text-gray-400 mt-4 shrink-0">—</span>
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-gray-500 font-medium mb-0.5 block">Hasta</label>
+                            <input
+                                type="date"
+                                value={dateRange ? dateRange[1].format('YYYY-MM-DD') : ''}
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        const end = moment(e.target.value).endOf('day');
+                                        const currentStart = dateRange ? moment(dateRange[0]).startOf('day') : moment(e.target.value).startOf('day');
+                                        const start = end.isBefore(currentStart) ? moment(e.target.value).startOf('day') : currentStart;
+                                        handleDateFilter([start, end]);
+                                    }
+                                }}
+                                className="w-full py-1.5 px-2 border border-gray-300 rounded-lg shadow-sm text-xs bg-white focus:border-[#163269] focus:ring-1 focus:ring-[#163269] outline-none"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { message } from "antd";
+import { message, Select, Input } from "antd";
 import { SelectOutlined, EditOutlined } from "@ant-design/icons";
 import axios from "axios";
 import AsignarRepartidorModal from "./AsignarRepartidorModal";
@@ -12,6 +12,8 @@ function ListaPedidosAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filterValue, setFilterValue] = useState(null);
+  const [searchName, setSearchName] = useState("");
+  const [searchDate, setSearchDate] = useState("");
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [repartidores, setRepartidores] = useState([]);
   const [selectedPedido, setSelectedPedido] = useState(null);
@@ -55,6 +57,26 @@ function ListaPedidosAdmin() {
   const handleCloseDetalleModal = () => {
     setShowDetalleModal(false);
     setSelectedPedido(null);
+  };
+
+  const handleCambiarEstado = async (pedido, nuevoEstado) => {
+    try {
+      const pedidoId = pedido.id_pedido || pedido.id;
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL || '/api'}/pedidos/${pedidoId}/estado`,
+        { estado: nuevoEstado }
+      );
+
+      if (response.data.status === 'success') {
+        message.success('Estado actualizado correctamente');
+        fetchPedidos();
+      } else {
+        message.error('No se pudo actualizar el estado');
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Error al actualizar estado';
+      message.error(errorMsg);
+    }
   };
 
   const handleAssignRepartidor = async (repartidorId) => {
@@ -146,14 +168,31 @@ function ListaPedidosAdmin() {
           <span className="text-lg sm:text-xl font-bold pb-4" style={{ color: "#163269" }}>
             Total de pedidos pendientes por asignar:{" "}
             {
-              (filterValue
-                ? pedidos.filter((p) => p.estado === filterValue)
-                : pedidos
-              ).length
+              (pedidos.filter((p) => p.estado === "Pendiente")).length
             }
           </span>
         </div>
-        <div className="flex items-center justify-end mb-4 gap-1">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Input
+              placeholder="Buscar por cliente"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              style={{ width: '100%', maxWidth: '200px' }}
+            />
+            <input
+              type="date"
+              value={searchDate}
+              onChange={(e) => setSearchDate(e.target.value)}
+              className="border border-gray-300 rounded px-2"
+              style={{
+                height: "32px",
+                minWidth: "130px",
+                borderColor: "#d9d9d9",
+                color: searchDate ? "black" : "#bfbfbf"
+              }}
+            />
+          </div>
           <button
             onClick={() => navigate("/admin/pedidos/crear-pedido")}
             className="px-6 py-2 sm:px-8 sm:py-3 rounded-lg text-white font-semibold text-sm sm:text-lg transition-colors hover:opacity-90"
@@ -183,10 +222,20 @@ function ListaPedidosAdmin() {
           </div>
         ) : (
           <div className="space-y-6">
-            {(filterValue
-              ? pedidos.filter((p) => p.estado === filterValue)
-              : pedidos
-            ).map((pedido) => (
+            {pedidos
+              .filter((p) => {
+                const matchName = searchName
+                  ? p.cliente_nombre.toLowerCase().includes(searchName.toLowerCase())
+                  : true;
+                const matchDate = searchDate
+                  ? new Date(p.fecha_creacion).toISOString().split('T')[0] === searchDate
+                  : true;
+                const matchStatus = filterValue && filterValue !== "Todos"
+                  ? p.estado === filterValue
+                  : true;
+                return matchName && matchDate && matchStatus;
+              })
+              .map((pedido) => (
               <div
                 key={pedido.id_pedido}
                 className="bg-white rounded-2xl shadow-lg overflow-hidden"
@@ -250,16 +299,16 @@ function ListaPedidosAdmin() {
                         Cancelar
                       </button>
 
-                      <button
-                        onClick={() => handleOpenModal(pedido)}
-                        className="px-3 py-1.5 border hover:bg-gray-50 flex items-center justify-center rounded"
-                        title="Asignar repartidor"
+                      <Select
+                        value={pedido.estado}
+                        onChange={(newEstado) => handleCambiarEstado(pedido, newEstado)}
+                        style={{ width: 140 }}
+                        disabled={pedido.estado === "Cancelado" || pedido.estado === "Entregado"}
                       >
-                        <SelectOutlined
-                          className="text-lg"
-                          style={{ color: "#163269" }}
-                        />
-                      </button>
+                        <Select.Option value="Pendiente">Pendiente</Select.Option>
+                        <Select.Option value="En transcurso">En transcurso</Select.Option>
+                        <Select.Option value="Entregado">Entregado</Select.Option>
+                      </Select>
                     </div>
                   </div>
                 </div>

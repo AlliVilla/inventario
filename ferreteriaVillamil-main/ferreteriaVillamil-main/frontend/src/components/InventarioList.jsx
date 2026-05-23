@@ -10,37 +10,70 @@ import ModalDeshabilitarArticulo from './ItemEstadoModal';
 import ModalEditarCantidad from './ItemInventarioModal';
 import ModalEliminarArticulo from './ItemBorrarModal';
 
-const PDF_COLUMNS = ['Código', 'Nombre', 'Costo Compra', 'Precio', 'Utilidad', 'Existencia', 'Estado'];
+const PDF_COLUMNS = ['Código', 'Producto', 'Cantidad', 'Precio', 'Total'];
+
+// Anchos fijos para que subtotales y totales alineen con la tabla principal
+const EXPORT_TABLE_WIDTH = 249;
+const EXPORT_MARGIN = { left: 14, right: 14 };
+const EXPORT_COLUMN_STYLES = {
+    0: { cellWidth: 35, halign: 'left' },
+    1: { cellWidth: 118, halign: 'left' },
+    2: { cellWidth: 28, halign: 'right' },
+    3: { cellWidth: 32, halign: 'right' },
+    4: { cellWidth: 36, halign: 'right' },
+};
+
+const getExportTableOptions = (overrides = {}) => {
+    const { margin, styles, columnStyles, ...rest } = overrides;
+    return {
+        theme: 'grid',
+        tableWidth: EXPORT_TABLE_WIDTH,
+        margin: { ...EXPORT_MARGIN, ...margin },
+        styles: { fontSize: 8, cellPadding: 2, ...styles },
+        columnStyles: { ...EXPORT_COLUMN_STYLES, ...columnStyles },
+        ...rest,
+    };
+};
 
 const computeColumnTotals = (items) => items.reduce((totals, item) => {
-    totals.costo += Number(item.costo_unitario) || 0;
-    totals.precio += Number(item.precio) || 0;
-    totals.utilidad += (Number(item.precio) - Number(item.costo_unitario)) || 0;
-    totals.existencia += Number(item.cantidad_existencia) || 0;
+    const cantidad = Number(item.cantidad_existencia) || 0;
+    const precio = Number(item.precio) || 0;
+    totals.cantidad += cantidad;
+    totals.precio += precio;
+    totals.total += cantidad * precio;
     return totals;
-}, { costo: 0, precio: 0, utilidad: 0, existencia: 0 });
+}, { cantidad: 0, precio: 0, total: 0 });
 
-const itemsToExportRows = (items) => items.map(item => [
-    item.codigo,
-    item.nombre,
-    Number(item.costo_unitario).toFixed(2),
-    Number(item.precio).toFixed(2),
-    (Number(item.precio) - Number(item.costo_unitario)).toFixed(2),
-    Number(item.cantidad_existencia),
-    item.estado,
-]);
+const itemsToExportRows = (items) => items.map(item => {
+    const cantidad = Number(item.cantidad_existencia) || 0;
+    const precio = Number(item.precio) || 0;
+    return [
+        item.codigo,
+        item.nombre,
+        cantidad,
+        precio.toFixed(2),
+        (cantidad * precio).toFixed(2),
+    ];
+});
 
 const buildTotalsFootRow = (items, label = 'TOTALES') => {
     const totals = computeColumnTotals(items);
     return [[
         label,
         `${items.length} productos`,
-        totals.costo.toFixed(2),
+        String(totals.cantidad),
         totals.precio.toFixed(2),
-        totals.utilidad.toFixed(2),
-        String(totals.existencia),
-        '',
+        totals.total.toFixed(2),
     ]];
+};
+
+const addItemToPageStats = (stats, item) => {
+    const cantidad = Number(item.cantidad_existencia) || 0;
+    const precio = Number(item.precio) || 0;
+    stats.cantidad += cantidad;
+    stats.precio += precio;
+    stats.total += cantidad * precio;
+    stats.count += 1;
 };
 
 
@@ -88,21 +121,13 @@ function InventarioList() {
             const pageStats = {};
             const countedRowsOnPage = new Set();
 
-            autoTable(doc, {
+            autoTable(doc, getExportTableOptions({
                 head: [PDF_COLUMNS],
                 body: rows,
                 startY: 34,
-                theme: 'grid',
+                margin: { top: 34, right: 14, bottom: 24, left: 14 },
                 showFoot: false,
-                margin: { top: 34, right: 14, bottom: 20, left: 14 },
-                styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
-                columnStyles: {
-                    2: { halign: 'right' },
-                    3: { halign: 'right' },
-                    4: { halign: 'right' },
-                    5: { halign: 'right' },
-                },
                 didDrawCell: (data) => {
                     if (data.section !== 'body') return;
 
@@ -114,64 +139,41 @@ function InventarioList() {
                     if (!item) return;
 
                     if (!pageStats[data.pageNumber]) {
-                        pageStats[data.pageNumber] = { costo: 0, precio: 0, utilidad: 0, existencia: 0, count: 0 };
+                        pageStats[data.pageNumber] = { cantidad: 0, precio: 0, total: 0, count: 0 };
                     }
 
-                    const stats = pageStats[data.pageNumber];
-                    stats.costo += Number(item.costo_unitario) || 0;
-                    stats.precio += Number(item.precio) || 0;
-                    stats.utilidad += (Number(item.precio) - Number(item.costo_unitario)) || 0;
-                    stats.existencia += Number(item.cantidad_existencia) || 0;
-                    stats.count += 1;
+                    addItemToPageStats(pageStats[data.pageNumber], item);
                 },
                 didDrawPage: (data) => {
                     const stats = pageStats[data.pageNumber];
                     if (!stats) return;
 
-                    autoTable(doc, {
-                        startY: data.cursor.y + 2,
-                        margin: {
-                            left: data.settings.margin.left,
-                            right: data.settings.margin.right,
-                        },
-                        showHead: false,
-                        theme: 'grid',
-                        pageBreak: 'avoid',
-                        styles: { fontSize: 8, cellPadding: 2, fontStyle: 'bold', fillColor: [230, 236, 245] },
-                        columnStyles: {
-                            2: { halign: 'right' },
-                            3: { halign: 'right' },
-                            4: { halign: 'right' },
-                            5: { halign: 'right' },
-                        },
+                    autoTable(doc, getExportTableOptions({
+                        head: [PDF_COLUMNS],
                         body: [[
                             `SUBTOTAL HOJA ${data.pageNumber}`,
                             `${stats.count} productos`,
-                            stats.costo.toFixed(2),
+                            String(stats.cantidad),
                             stats.precio.toFixed(2),
-                            stats.utilidad.toFixed(2),
-                            String(stats.existencia),
-                            '',
+                            stats.total.toFixed(2),
                         ]],
-                    });
+                        startY: data.cursor.y + 2,
+                        margin: { left: EXPORT_MARGIN.left, right: EXPORT_MARGIN.right },
+                        showHead: false,
+                        pageBreak: 'avoid',
+                        styles: { fontStyle: 'bold', fillColor: [230, 236, 245] },
+                    }));
                 },
-            });
+            }));
 
-            autoTable(doc, {
-                startY: doc.lastAutoTable.finalY + 4,
-                margin: { left: 14, right: 14 },
-                showHead: false,
-                theme: 'grid',
-                styles: { fontSize: 8, cellPadding: 2 },
+            autoTable(doc, getExportTableOptions({
+                head: [PDF_COLUMNS],
                 foot: grandTotalsFoot,
+                body: [],
+                startY: doc.lastAutoTable.finalY + 4,
+                showHead: false,
                 footStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
-                columnStyles: {
-                    2: { halign: 'right' },
-                    3: { halign: 'right' },
-                    4: { halign: 'right' },
-                    5: { halign: 'right' },
-                },
-            });
+            }));
 
             doc.save('inventario.pdf');
             message.success(`PDF generado con ${allItems.length} productos`);
@@ -196,24 +198,24 @@ function InventarioList() {
             }
 
             const totals = computeColumnTotals(allItems);
-            const data = allItems.map(item => ({
-                Código: item.codigo,
-                Nombre: item.nombre,
-                'Costo Compra': Number(item.costo_unitario).toFixed(2),
-                Precio: Number(item.precio).toFixed(2),
-                Utilidad: (Number(item.precio) - Number(item.costo_unitario)).toFixed(2),
-                Existencia: Number(item.cantidad_existencia),
-                Estado: item.estado,
-            }));
+            const data = allItems.map(item => {
+                const cantidad = Number(item.cantidad_existencia) || 0;
+                const precio = Number(item.precio) || 0;
+                return {
+                    Código: item.codigo,
+                    Producto: item.nombre,
+                    Cantidad: cantidad,
+                    Precio: precio.toFixed(2),
+                    Total: (cantidad * precio).toFixed(2),
+                };
+            });
 
             data.push({
                 Código: 'TOTALES',
-                Nombre: `${allItems.length} productos`,
-                'Costo Compra': totals.costo.toFixed(2),
+                Producto: `${allItems.length} productos`,
+                Cantidad: totals.cantidad,
                 Precio: totals.precio.toFixed(2),
-                Utilidad: totals.utilidad.toFixed(2),
-                Existencia: totals.existencia,
-                Estado: '',
+                Total: totals.total.toFixed(2),
             });
 
             const ws = XLSX.utils.json_to_sheet(data);

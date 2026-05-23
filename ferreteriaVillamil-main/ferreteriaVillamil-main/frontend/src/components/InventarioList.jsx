@@ -1,14 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar, message, Image } from 'antd';
+import { Avatar, message, Image, Modal, DatePicker, Button } from 'antd';
 import { DeleteOutlined, EditOutlined, LockOutlined, PlusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import moment from 'moment';
+import logo from '../assets/LogoFerreteriaVillamil.png';
 import ModalDeshabilitarArticulo from './ItemEstadoModal';
 import ModalEditarCantidad from './ItemInventarioModal';
 import ModalEliminarArticulo from './ItemBorrarModal';
+
+const PDF_HEADER_INFO = {
+    businessName: 'FERRETERIA VILLAMIL',
+    reportTitle: 'REPORTE GENERAL',
+    address: 'NACO CORTES. BARRIO CARMELINA, MEDIA CUADRA HACIA ARRIBA DEL POLIDEPORTIVO',
+    phones: 'Tel. 95086231 - 96096433',
+};
+
+const PDF_HEADER_TOP = 54;
+
+const drawPdfHeader = (doc, reportDate, productCount = null) => {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const centerX = pageWidth / 2;
+    const rightX = pageWidth - 14;
+
+    doc.addImage(logo, 'PNG', 14, 8, 48, 32);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(16);
+    doc.text(PDF_HEADER_INFO.businessName, centerX, 14, { align: 'center' });
+
+    doc.setFontSize(13);
+    doc.text(PDF_HEADER_INFO.reportTitle, centerX, 22, { align: 'center' });
+
+    doc.setFont('times', 'normal');
+    doc.setFontSize(9);
+    const addressLines = doc.splitTextToSize(PDF_HEADER_INFO.address, pageWidth - 80);
+    doc.text(addressLines, centerX, 30, { align: 'center' });
+
+    const phonesY = 30 + (addressLines.length * 4.5) + 2;
+    doc.text(PDF_HEADER_INFO.phones, centerX, phonesY, { align: 'center' });
+
+    doc.setFont('times', 'bold');
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${reportDate}`, rightX, 12, { align: 'right' });
+
+    const lineY = Math.max(phonesY + 6, 46);
+    doc.setDrawColor(0, 0, 0);
+    doc.line(14, lineY, rightX, lineY);
+
+    let infoY = lineY + 6;
+    if (productCount != null) {
+        doc.setFont('times', 'normal');
+        doc.setFontSize(9);
+        doc.text(`Total de productos: ${productCount}`, 14, infoY);
+        infoY += 5;
+    }
+
+    return Math.max(infoY + 2, PDF_HEADER_TOP);
+};
 
 const PDF_COLUMNS = ['Código', 'Producto', 'Cantidad', 'Precio', 'Total'];
 
@@ -86,6 +139,8 @@ function InventarioList() {
     const [articuloSel, setArticuloSel] = useState(null);
     const [searchText, setSearchText] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [pdfModalOpen, setPdfModalOpen] = useState(false);
+    const [pdfReportDate, setPdfReportDate] = useState(() => moment());
     const navigate = useNavigate();
     const baseUrl = import.meta.env.VITE_API_URL;
     const baseImageUrl = baseUrl?.replace('/api', '') || 'http://localhost:3000';
@@ -97,7 +152,14 @@ function InventarioList() {
         return `${baseImageUrl}/${cleanPath}`;
     };
 
+    const openPdfExportModal = () => {
+        setPdfReportDate(moment());
+        setPdfModalOpen(true);
+    };
+
     const exportToPDF = async () => {
+        setPdfModalOpen(false);
+        const reportDate = pdfReportDate.format('DD/MM/YYYY');
         const hideLoading = message.loading('Generando PDF con todo el inventario...', 0);
 
         try {
@@ -110,11 +172,7 @@ function InventarioList() {
             }
 
             const doc = new jsPDF({ orientation: 'landscape' });
-
-            doc.setFontSize(18);
-            doc.text('Inventario completo', 14, 22);
-            doc.setFontSize(10);
-            doc.text(`Total de productos: ${allItems.length}`, 14, 28);
+            const tableStartY = PDF_HEADER_TOP;
 
             const rows = itemsToExportRows(allItems);
             const grandTotalsFoot = buildTotalsFootRow(allItems, 'TOTAL GENERAL');
@@ -124,10 +182,17 @@ function InventarioList() {
             autoTable(doc, getExportTableOptions({
                 head: [PDF_COLUMNS],
                 body: rows,
-                startY: 34,
-                margin: { top: 34, right: 14, bottom: 24, left: 14 },
+                startY: tableStartY,
+                margin: { top: tableStartY, right: 14, bottom: 24, left: 14 },
                 showFoot: false,
                 headStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
+                willDrawPage: (data) => {
+                    drawPdfHeader(
+                        doc,
+                        reportDate,
+                        data.pageNumber === 1 ? allItems.length : null
+                    );
+                },
                 didDrawCell: (data) => {
                     if (data.section !== 'body') return;
 
@@ -331,7 +396,7 @@ function InventarioList() {
 
                 {/* New Article Button Only */}
                 <div className="flex justify-end mb-6">
-                    <button className="px-4 py-2 ml-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium" onClick={exportToPDF}>Exportar PDF</button>
+                    <button className="px-4 py-2 ml-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium" onClick={openPdfExportModal}>Exportar PDF</button>
                     <button className="px-4 py-2 ml-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium" onClick={exportToExcel}>Exportar Excel</button>
                 </div>
 
@@ -543,6 +608,32 @@ function InventarioList() {
                         fetchArticulos();
                     }}
                 />
+                <Modal
+                    title="Exportar inventario a PDF"
+                    open={pdfModalOpen}
+                    onCancel={() => setPdfModalOpen(false)}
+                    footer={[
+                        <Button key="cancel" onClick={() => setPdfModalOpen(false)}>
+                            Cancelar
+                        </Button>,
+                        <Button key="export" type="primary" onClick={exportToPDF}>
+                            Generar PDF
+                        </Button>,
+                    ]}
+                >
+                    <p className="mb-2 text-gray-600">
+                        Revise la fecha del reporte antes de generar el PDF.
+                    </p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha del reporte</label>
+                    <DatePicker
+                        value={pdfReportDate}
+                        onChange={(value) => setPdfReportDate(value || moment())}
+                        format="DD/MM/YYYY"
+                        allowClear={false}
+                        className="w-full"
+                        inputReadOnly={false}
+                    />
+                </Modal>
             </div >
         </div >
     )

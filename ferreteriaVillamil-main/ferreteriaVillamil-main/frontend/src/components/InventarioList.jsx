@@ -42,7 +42,7 @@ const getPdfLogoDataUrl = () => new Promise((resolve, reject) => {
         return;
     }
 
-    const img = new Image();
+    const img = document.createElement('img');
     img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = img.naturalWidth;

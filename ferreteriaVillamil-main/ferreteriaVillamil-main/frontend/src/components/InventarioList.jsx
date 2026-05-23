@@ -20,13 +20,52 @@ const PDF_HEADER_INFO = {
 };
 
 const PDF_HEADER_TOP = 54;
+let pdfLogoDataUrlCache = null;
 
-const drawPdfHeader = (doc, reportDate, productCount = null) => {
+const formatExportNumber = (value, decimals = 2) => {
+    const num = Number(value) || 0;
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    });
+};
+
+const formatExportInteger = (value) => {
+    const num = Number(value) || 0;
+    return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+};
+
+/** PNG con transparencia en jsPDF suele verse negro; se aplana sobre fondo blanco */
+const getPdfLogoDataUrl = () => new Promise((resolve, reject) => {
+    if (pdfLogoDataUrlCache) {
+        resolve(pdfLogoDataUrlCache);
+        return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        pdfLogoDataUrlCache = canvas.toDataURL('image/jpeg', 0.92);
+        resolve(pdfLogoDataUrlCache);
+    };
+    img.onerror = reject;
+    img.src = logo;
+});
+
+const drawPdfHeader = (doc, reportDate, logoDataUrl, productCount = null) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const centerX = pageWidth / 2;
     const rightX = pageWidth - 14;
 
-    doc.addImage(logo, 'PNG', 14, 8, 48, 32);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(14, 8, 48, 32, 'F');
+    doc.addImage(logoDataUrl, 'JPEG', 14, 8, 48, 32);
 
     doc.setTextColor(0, 0, 0);
     doc.setFont('times', 'bold');
@@ -105,9 +144,9 @@ const itemsToExportRows = (items) => items.map(item => {
     return [
         item.codigo,
         item.nombre,
-        cantidad,
-        precio.toFixed(2),
-        (cantidad * precio).toFixed(2),
+        formatExportInteger(cantidad),
+        formatExportNumber(precio),
+        formatExportNumber(cantidad * precio),
     ];
 });
 
@@ -116,11 +155,19 @@ const buildTotalsFootRow = (items, label = 'TOTALES') => {
     return [[
         label,
         `${items.length} productos`,
-        String(totals.cantidad),
-        totals.precio.toFixed(2),
-        totals.total.toFixed(2),
+        formatExportInteger(totals.cantidad),
+        formatExportNumber(totals.precio),
+        formatExportNumber(totals.total),
     ]];
 };
+
+const buildPageSubtotalRow = (pageNumber, stats) => [
+    `SUBTOTAL HOJA ${pageNumber}`,
+    `${stats.count} productos`,
+    formatExportInteger(stats.cantidad),
+    formatExportNumber(stats.precio),
+    formatExportNumber(stats.total),
+];
 
 const addItemToPageStats = (stats, item) => {
     const cantidad = Number(item.cantidad_existencia) || 0;
@@ -174,6 +221,7 @@ function InventarioList() {
             }
 
             const doc = new jsPDF({ orientation: 'landscape' });
+            const logoDataUrl = await getPdfLogoDataUrl();
             const tableStartY = PDF_HEADER_TOP;
 
             const rows = itemsToExportRows(allItems);
@@ -197,6 +245,7 @@ function InventarioList() {
                     drawPdfHeader(
                         doc,
                         reportDate,
+                        logoDataUrl,
                         data.pageNumber === 1 ? allItems.length : null
                     );
                 },
@@ -222,13 +271,7 @@ function InventarioList() {
 
                     autoTable(doc, getExportTableOptions({
                         head: [PDF_COLUMNS],
-                        body: [[
-                            `SUBTOTAL HOJA ${data.pageNumber}`,
-                            `${stats.count} productos`,
-                            String(stats.cantidad),
-                            stats.precio.toFixed(2),
-                            stats.total.toFixed(2),
-                        ]],
+                        body: [buildPageSubtotalRow(data.pageNumber, stats)],
                         startY: data.cursor.y + 2,
                         margin: { left: EXPORT_MARGIN.left, right: EXPORT_MARGIN.right },
                         showHead: false,
@@ -276,18 +319,18 @@ function InventarioList() {
                 return {
                     Código: item.codigo,
                     Producto: item.nombre,
-                    Cantidad: cantidad,
-                    Precio: precio.toFixed(2),
-                    Total: (cantidad * precio).toFixed(2),
+                    Cantidad: formatExportInteger(cantidad),
+                    Precio: formatExportNumber(precio),
+                    Total: formatExportNumber(cantidad * precio),
                 };
             });
 
             data.push({
                 Código: 'TOTALES',
                 Producto: `${allItems.length} productos`,
-                Cantidad: totals.cantidad,
-                Precio: totals.precio.toFixed(2),
-                Total: totals.total.toFixed(2),
+                Cantidad: formatExportInteger(totals.cantidad),
+                Precio: formatExportNumber(totals.precio),
+                Total: formatExportNumber(totals.total),
             });
 
             const ws = XLSX.utils.json_to_sheet(data);

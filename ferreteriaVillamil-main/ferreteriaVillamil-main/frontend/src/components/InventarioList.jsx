@@ -3,9 +3,46 @@ import { Avatar, message, Image } from 'antd';
 import { DeleteOutlined, EditOutlined, LockOutlined, PlusCircleOutlined, EyeOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import ModalDeshabilitarArticulo from './ItemEstadoModal';
 import ModalEditarCantidad from './ItemInventarioModal';
 import ModalEliminarArticulo from './ItemBorrarModal';
+
+const PDF_COLUMNS = ['Código', 'Nombre', 'Costo Compra', 'Precio', 'Utilidad', 'Existencia', 'Estado'];
+
+const computeColumnTotals = (items) => items.reduce((totals, item) => {
+    totals.costo += Number(item.costo_unitario) || 0;
+    totals.precio += Number(item.precio) || 0;
+    totals.utilidad += (Number(item.precio) - Number(item.costo_unitario)) || 0;
+    totals.existencia += Number(item.cantidad_existencia) || 0;
+    return totals;
+}, { costo: 0, precio: 0, utilidad: 0, existencia: 0 });
+
+const itemsToExportRows = (items) => items.map(item => [
+    item.codigo,
+    item.nombre,
+    Number(item.costo_unitario).toFixed(2),
+    Number(item.precio).toFixed(2),
+    (Number(item.precio) - Number(item.costo_unitario)).toFixed(2),
+    Number(item.cantidad_existencia),
+    item.estado,
+]);
+
+const buildTotalsFootRow = (items, label = 'TOTALES') => {
+    const totals = computeColumnTotals(items);
+    return [[
+        label,
+        `${items.length} productos`,
+        totals.costo.toFixed(2),
+        totals.precio.toFixed(2),
+        totals.utilidad.toFixed(2),
+        String(totals.existencia),
+        '',
+    ]];
+};
+
 
 function InventarioList() {
     const [articulos, setArticulos] = useState([]);
@@ -27,7 +64,170 @@ function InventarioList() {
         return `${baseImageUrl}/${cleanPath}`;
     };
 
-    const fetchArticulos = async (searchQuery = '') => {
+    const exportToPDF = async () => {
+        const hideLoading = message.loading('Generando PDF con todo el inventario...', 0);
+
+        try {
+            const response = await axios.get(`${baseUrl}/articulos/list`, { params: { limit: 100000 } });
+            const allItems = response.data.data || [];
+
+            if (allItems.length === 0) {
+                message.warning('No hay artículos para exportar');
+                return;
+            }
+
+            const doc = new jsPDF({ orientation: 'landscape' });
+
+            doc.setFontSize(18);
+            doc.text('Inventario completo', 14, 22);
+            doc.setFontSize(10);
+            doc.text(`Total de productos: ${allItems.length}`, 14, 28);
+
+            const rows = itemsToExportRows(allItems);
+            const grandTotalsFoot = buildTotalsFootRow(allItems, 'TOTAL GENERAL');
+            const pageStats = {};
+            const countedRowsOnPage = new Set();
+
+            autoTable(doc, {
+                head: [PDF_COLUMNS],
+                body: rows,
+                startY: 34,
+                theme: 'grid',
+                showFoot: false,
+                margin: { top: 34, right: 14, bottom: 20, left: 14 },
+                styles: { fontSize: 8, cellPadding: 2 },
+                headStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
+                columnStyles: {
+                    2: { halign: 'right' },
+                    3: { halign: 'right' },
+                    4: { halign: 'right' },
+                    5: { halign: 'right' },
+                },
+                didDrawCell: (data) => {
+                    if (data.section !== 'body') return;
+
+                    const rowKey = `${data.pageNumber}-${data.row.index}`;
+                    if (countedRowsOnPage.has(rowKey) || data.column.index !== 0) return;
+
+                    countedRowsOnPage.add(rowKey);
+                    const item = allItems[data.row.index];
+                    if (!item) return;
+
+                    if (!pageStats[data.pageNumber]) {
+                        pageStats[data.pageNumber] = { costo: 0, precio: 0, utilidad: 0, existencia: 0, count: 0 };
+                    }
+
+                    const stats = pageStats[data.pageNumber];
+                    stats.costo += Number(item.costo_unitario) || 0;
+                    stats.precio += Number(item.precio) || 0;
+                    stats.utilidad += (Number(item.precio) - Number(item.costo_unitario)) || 0;
+                    stats.existencia += Number(item.cantidad_existencia) || 0;
+                    stats.count += 1;
+                },
+                didDrawPage: (data) => {
+                    const stats = pageStats[data.pageNumber];
+                    if (!stats) return;
+
+                    autoTable(doc, {
+                        startY: data.cursor.y + 2,
+                        margin: {
+                            left: data.settings.margin.left,
+                            right: data.settings.margin.right,
+                        },
+                        showHead: false,
+                        theme: 'grid',
+                        pageBreak: 'avoid',
+                        styles: { fontSize: 8, cellPadding: 2, fontStyle: 'bold', fillColor: [230, 236, 245] },
+                        columnStyles: {
+                            2: { halign: 'right' },
+                            3: { halign: 'right' },
+                            4: { halign: 'right' },
+                            5: { halign: 'right' },
+                        },
+                        body: [[
+                            `SUBTOTAL HOJA ${data.pageNumber}`,
+                            `${stats.count} productos`,
+                            stats.costo.toFixed(2),
+                            stats.precio.toFixed(2),
+                            stats.utilidad.toFixed(2),
+                            String(stats.existencia),
+                            '',
+                        ]],
+                    });
+                },
+            });
+
+            autoTable(doc, {
+                startY: doc.lastAutoTable.finalY + 4,
+                margin: { left: 14, right: 14 },
+                showHead: false,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 2 },
+                foot: grandTotalsFoot,
+                footStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
+                columnStyles: {
+                    2: { halign: 'right' },
+                    3: { halign: 'right' },
+                    4: { halign: 'right' },
+                    5: { halign: 'right' },
+                },
+            });
+
+            doc.save('inventario.pdf');
+            message.success(`PDF generado con ${allItems.length} productos`);
+        } catch (err) {
+            console.error(err);
+            message.error('No se pudo generar el PDF');
+        } finally {
+            hideLoading();
+        }
+    };
+
+    const exportToExcel = async () => {
+        const hideLoading = message.loading('Generando Excel con todo el inventario...', 0);
+
+        try {
+            const response = await axios.get(`${baseUrl}/articulos/list`, { params: { limit: 100000 } });
+            const allItems = response.data.data || [];
+
+            if (allItems.length === 0) {
+                message.warning('No hay artículos para exportar');
+                return;
+            }
+
+            const totals = computeColumnTotals(allItems);
+            const data = allItems.map(item => ({
+                Código: item.codigo,
+                Nombre: item.nombre,
+                'Costo Compra': Number(item.costo_unitario).toFixed(2),
+                Precio: Number(item.precio).toFixed(2),
+                Utilidad: (Number(item.precio) - Number(item.costo_unitario)).toFixed(2),
+                Existencia: Number(item.cantidad_existencia),
+                Estado: item.estado,
+            }));
+
+            data.push({
+                Código: 'TOTALES',
+                Nombre: `${allItems.length} productos`,
+                'Costo Compra': totals.costo.toFixed(2),
+                Precio: totals.precio.toFixed(2),
+                Utilidad: totals.utilidad.toFixed(2),
+                Existencia: totals.existencia,
+                Estado: '',
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = { Sheets: { Inventario: ws }, SheetNames: ['Inventario'] };
+            XLSX.writeFile(wb, 'inventario.xlsx');
+            message.success(`Excel generado con ${allItems.length} productos`);
+        } catch (err) {
+            console.error(err);
+            message.error('No se pudo generar el Excel');
+        } finally {
+            hideLoading();
+        }
+    };
+    const fetchArticulos = async (searchQuery) => {
         try {
             const params = searchQuery ? { search: searchQuery, limit: 200 } : { limit: 200 };
             const response = await axios.get(`${baseUrl}/articulos/list`, { params });
@@ -36,7 +236,7 @@ function InventarioList() {
             const errorMsg = err.response?.data?.message || 'Error al cargar articulos';
             message.error(errorMsg);
         }
-    }
+    };
 
     const sortedArticulos = React.useMemo(() => {
         if (!articulos) return [];
@@ -129,10 +329,8 @@ function InventarioList() {
 
                 {/* New Article Button Only */}
                 <div className="flex justify-end mb-6">
-                    <button className="px-6 py-3 bg-white border-2 border-black rounded-lg shadow-md hover:bg-gray-50 transition-colors font-medium text-lg"
-                        onClick={handleNuevoArticulo}>
-                        Nuevo artículo
-                    </button>
+                    <button className="px-4 py-2 ml-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium" onClick={exportToPDF}>Exportar PDF</button>
+                    <button className="px-4 py-2 ml-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium" onClick={exportToExcel}>Exportar Excel</button>
                 </div>
 
                 {/* Inventory Table Card */}

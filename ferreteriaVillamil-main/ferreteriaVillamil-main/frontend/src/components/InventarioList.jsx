@@ -401,10 +401,16 @@ function InventarioList() {
                     Inventario
                 </h1>
 
-                {/* New Article Button Only */}
-                <div className="flex justify-end mb-6">
-                    <button className="px-4 py-2 ml-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium" onClick={openPdfExportModal}>Exportar PDF</button>
-                    <button className="px-4 py-2 ml-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium" onClick={exportToExcel}>Exportar Excel</button>
+                <div className="flex flex-wrap justify-end gap-2 mb-6">
+                    <button
+                        className="px-4 py-2 text-white rounded-md hover:opacity-90 transition-colors font-medium"
+                        style={{ backgroundColor: '#163269' }}
+                        onClick={handleNuevoArticulo}
+                    >
+                        Agregar producto
+                    </button>
+                    <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium" onClick={openPdfExportModal}>Exportar PDF</button>
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium" onClick={exportToExcel}>Exportar Excel</button>
                 </div>
 
                 {/* Inventory Table Card */}

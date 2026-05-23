@@ -68,13 +68,15 @@ const PDF_COLUMNS = ['Código', 'Producto', 'Cantidad', 'Precio', 'Total'];
 // Anchos fijos para que subtotales y totales alineen con la tabla principal
 const EXPORT_TABLE_WIDTH = 249;
 const EXPORT_MARGIN = { left: 14, right: 14 };
+const EXPORT_COLUMN_WIDTHS = [35, 118, 28, 32, 36];
 const EXPORT_COLUMN_STYLES = {
-    0: { cellWidth: 35, halign: 'left' },
-    1: { cellWidth: 118, halign: 'left' },
-    2: { cellWidth: 28, halign: 'right' },
-    3: { cellWidth: 32, halign: 'right' },
-    4: { cellWidth: 36, halign: 'right' },
+    0: { cellWidth: EXPORT_COLUMN_WIDTHS[0], halign: 'left' },
+    1: { cellWidth: EXPORT_COLUMN_WIDTHS[1], halign: 'left' },
+    2: { cellWidth: EXPORT_COLUMN_WIDTHS[2], halign: 'right' },
+    3: { cellWidth: EXPORT_COLUMN_WIDTHS[3], halign: 'right' },
+    4: { cellWidth: EXPORT_COLUMN_WIDTHS[4], halign: 'right' },
 };
+const PDF_SUBTOTAL_BOTTOM_MARGIN = 12;
 
 const getExportTableOptions = (overrides = {}) => {
     const { margin, styles, columnStyles, ...rest } = overrides;
@@ -183,7 +185,12 @@ function InventarioList() {
                 head: [PDF_COLUMNS],
                 body: rows,
                 startY: tableStartY,
-                margin: { top: tableStartY, right: 14, bottom: 24, left: 14 },
+                margin: {
+                    top: tableStartY,
+                    right: 14,
+                    bottom: 24 + PDF_SUBTOTAL_BOTTOM_MARGIN,
+                    left: 14,
+                },
                 showFoot: false,
                 headStyles: { fillColor: [22, 50, 105], textColor: 255, fontStyle: 'bold' },
                 willDrawPage: (data) => {
@@ -211,7 +218,7 @@ function InventarioList() {
                 },
                 didDrawPage: (data) => {
                     const stats = pageStats[data.pageNumber];
-                    if (!stats) return;
+                    if (!stats || !data.cursor) return;
 
                     autoTable(doc, getExportTableOptions({
                         head: [PDF_COLUMNS],

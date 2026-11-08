@@ -1,7 +1,6 @@
-const { Usuario, Pedido } = require("../models");
+const { Sucursal, Usuario, Pedido } = require("../models");
 const crypt = require("bcrypt");
-const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
+const { signSession } = require('../utils/tokens');
 const { uploadImage } = require('../middleware/upload');
 
 const createUsuario = async (req, res) => {
@@ -138,7 +137,7 @@ const loginUsuario = async (req, res) => {
   try {
     const { usuario, contrasena } = req.body;
     
-    if (!usuario || !contrasena) {
+    if (typeof usuario !== "string" || typeof contrasena !== "string" || !usuario.trim() || !contrasena) {
       return res.status(400).json({ message: "Usuario y contraseña son obligatorios" });
     }
 
@@ -151,47 +150,38 @@ const loginUsuario = async (req, res) => {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();
 
-    let user = await Usuario.findOne({
-      where: {
-        [Op.or]: [{ nombre: usuarioInput }, { correo: usuarioInput }]
-      }
+    const accounts = Usuario.unscoped();
+    const emails = await accounts.findAll({
+      where: accounts.sequelize.where(accounts.sequelize.fn('LOWER',
+        accounts.sequelize.col('correo')), usuarioInput.toLowerCase()),
+      limit: 2
     });
-
+    let user = emails.length === 1 ? emails[0] : null;
     if (!user) {
-      const usuariosActivos = await Usuario.findAll({
-        where: { estado: 'Activo' }
-      });
+      const activeUsers = await accounts.findAll({ where: { estado: 'Activo' } });
       const target = normalize(usuarioInput);
-      user =
-        usuariosActivos.find(
-          (u) => normalize(u.nombre) === target || normalize(u.correo) === target
-        ) || null;
+      const matches = activeUsers.filter(account => normalize(account.nombre) === target);
+      if (matches.length === 1) user = matches[0];
     }
     if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     if (user.estado !== 'Activo') {
-      return res.status(403).json({ message: "Usuario inactivo" });
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     const contrasenaValida = await crypt.compare(contrasena, user.clave);
     if (!contrasenaValida) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
+      return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    const token = jwt.sign(
-      { 
-        id: user.id_usuario,
-        usuario: user.nombre,
-        rol: user.rol,
-        nombre: user.nombre
-      },
-      process.env.JWT_SECRET || 'ferreteria_villamil_secret_key_2024',
-      { expiresIn: '1d' }
-    );
+    const token = signSession(user.id_usuario);
 
+    const sucursal = await Sucursal.findByPk(user.id_sucursal);
     const usuarioSinClave = {
+      id_sucursal: user.id_sucursal,
+      sucursal: sucursal.nombre,
       id_usuario: user.id_usuario,
       nombre: user.nombre,
       correo: user.correo,

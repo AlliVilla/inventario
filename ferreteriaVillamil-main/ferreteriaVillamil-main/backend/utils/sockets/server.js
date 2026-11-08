@@ -1,159 +1,81 @@
 const { Server } = require('socket.io');
 const { Pedido } = require('../../models');
+const { activeUser } = require('../../middleware/auth');
+const { verify } = require('../tokens');
 
+function attachSocket(server) {
+  const io = new Server(server, {
+    cors: { origin: process.env.FRONTEND_URL || 'http://localhost:5173' }
+  });
 
-/*
-##eventos###
+  io.on('connection', (socket) => {
+    const deliveries = new Map();
+    const rooms = new Map();
 
- - order:join -> repartidor/cliente envían { role, pedido } para unirse a la sala del pedido.
- - order:leave -> (a implementar) permitiría salir de la sala.
- - location:update -> el repartidor comparte su lat/lng y se reenvía a todos los sockets en la sala.
-*/
-const attachSocket = (server) =>{
-    const lastLocations = new Map();
-    const normalizePedidoRoom = async (pedido) => {
-        const raw = pedido == null ? '' : String(pedido);
-        if (!raw) return null;
-
-        const isNumeric = /^\d+$/.test(raw);
-        const where = isNumeric ? { id_pedido: Number(raw) } : { numero_pedido: raw };
- 
-        const pedidoDb = await Pedido.findOne({
-            where,
-            attributes: ['numero_pedido']
-        });
-
-        return pedidoDb?.numero_pedido ? String(pedidoDb.numero_pedido) : null;
-    };
-
-    const io = new Server(server, {
-        cors: {
-            origin: [
-                "https://localhost:5173", 
-                "http://localhost:5173", 
-                "http://localhost:3000",
-                "https://grab-remarkable-clips-virgin.trycloudflare.com",
-                "https://paradise-corp-version-inch.trycloudflare.com",
-                /^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):[0-9]+$/,
-                /^https:\/\/.*\.trycloudflare\.com$/
-            ],
-            methods: ["GET", "POST"],
-            credentials: true
+    socket.on('order:join', async (data) => {
+      try {
+        const { role, pedido } = data || {};
+        let where;
+        if (role === 'cliente') {
+          const { id } = verify(pedido, 'tracking');
+          where = { id_pedido: id };
+        } else if (role === 'repartidor') {
+          const user = await activeUser(socket.handshake.auth.token);
+          if (!user || user.rol !== 'Repartidor' || typeof pedido !== 'string') throw new Error('Acceso denegado');
+          where = { numero_pedido: pedido, id_repartidor_asignado: user.id_usuario, id_sucursal: user.id_sucursal };
+        } else {
+          throw new Error('Rol inválido');
         }
+
+        const order = await Pedido.findOne({ where, attributes: ['id_pedido'] });
+        if (!order) throw new Error('Pedido no encontrado');
+        const room = 'pedido:' + order.id_pedido;
+        rooms.set(pedido, room);
+        if (role === 'repartidor') deliveries.set(room, order.id_pedido);
+        await socket.join(room);
+        socket.emit('order:joined', { response: true });
+      } catch {
+        socket.emit('order:joined', { response: false });
+      }
     });
 
-    io.on('connection', (socket) => {
-        let role = null;
-        const repartidorRooms = new Set(); // Track todas las salas del repartidor
+    socket.on('order:leave', (data) => {
+      const { pedido } = data || {};
+      const room = rooms.get(pedido);
+      if (!room) return;
+      deliveries.delete(room);
+      rooms.delete(pedido);
+      socket.leave(room);
+    });
 
-        // Listener de location:update para repartidores (fuera de order:join para que funcione para todas las salas)
-        socket.on('location:update', async (locationData) => {
-            // Solo procesar si el socket tiene salas de repartidor activas
-            if (repartidorRooms.size === 0) {
-                return;
-            }
-
-            const { lat, lng, accuracy, timestamp } = locationData;
-            
-            // Validar y emitir a todas las salas del repartidor
-            const roomsToUpdate = [];
-            
-            for (const roomPedido of repartidorRooms) {
-                try {
-                    const pedidoDb = await Pedido.findOne({
-                        where: { numero_pedido: roomPedido },
-                        attributes: ['estado']
-                    });
-
-                    if (pedidoDb && pedidoDb.estado === 'En transcurso') {
-                        roomsToUpdate.push(roomPedido);
-                    }
-                } catch (err) {
-                    console.error(`Error validando estado del pedido ${roomPedido} para tracking:`, err);
-                }
-            }
-
-            if (roomsToUpdate.length === 0) {
-                return;
-            }
-
-            const payload = { lat, lng, accuracy, timestamp };
-            
-            // Emitir a todas las salas válidas
-            roomsToUpdate.forEach(roomPedido => {
-                lastLocations.set(String(roomPedido), payload);
-                io.to(roomPedido).emit('location:update', payload);
+    let lastUpdate = 0;
+    socket.on('location:update', async (data) => {
+      const { lat, lng, accuracy, timestamp } = data || {};
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+      if (!deliveries.size || Date.now() - lastUpdate < 1000) return;
+      lastUpdate = Date.now();
+      try {
+        const user = await activeUser(socket.handshake.auth.token);
+        if (!user || user.rol !== 'Repartidor') return;
+        for (const [room, id_pedido] of deliveries) {
+          const order = await Pedido.findOne({
+            where: { id_pedido, id_repartidor_asignado: user.id_usuario, id_sucursal: user.id_sucursal, estado: 'En transcurso' },
+            attributes: ['id_pedido']
+          });
+          if (order && deliveries.has(room)) {
+            io.to(room).emit('location:update', {
+              lat, lng, accuracy: Number.isFinite(accuracy) ? accuracy : null,
+              timestamp: Number.isFinite(timestamp) ? timestamp : Date.now()
             });
-            
-            console.log(`Ubicacion del repartidor emitida a ${roomsToUpdate.length} sala(s): Latitud ${lat}, Longitud ${lng}`);
-        });
-
-        socket.on('order:join', async (data) => {
-            const { role: localRole, pedido } = data;
-            role = localRole;
-
-            try {
-                const roomPedido = await normalizePedidoRoom(pedido);
-                if (!roomPedido) {
-                    console.log(`order:join rechazado (socket=${socket.id}, role=${role}, pedido=${String(pedido)})`);
-                    socket.emit('order:joined', { response: false });
-                    return;
-                }
-
-                console.log(`usuario ${role} se ha conectado (socket=${socket.id})`);
-                socket.join(roomPedido);
-                console.log(`El ${role} se ha unido a la sala del pedido: ${roomPedido}`);
-                socket.emit('order:joined', { response: true });
-
-                // Si es repartidor, agregar la sala a la lista de salas activas
-                if (role === 'repartidor') {
-                    repartidorRooms.add(roomPedido);
-                    console.log(`Repartidor ahora está en ${repartidorRooms.size} sala(s)`);
-                }
-
-                if (role === 'cliente') {
-                    const last = lastLocations.get(String(roomPedido));
-                    if (last) {
-                        socket.emit('location:update', last);
-                    }
-                }
-            } catch (err) {
-                console.error('Error en order:join:', err);
-                socket.emit('order:joined', { response: false });
-            }
-        });
-
-        socket.on('order:leave', async (data) => {
-            const { pedido } = data;
-            if (!pedido) return;
-
-            try {
-                const roomPedido = await normalizePedidoRoom(pedido);
-                if (roomPedido) {
-                    socket.leave(roomPedido);
-                    if (role === 'repartidor') {
-                        repartidorRooms.delete(roomPedido);
-                        console.log(`Repartidor salió de la sala ${roomPedido}. Quedan ${repartidorRooms.size} sala(s)`);
-                    }
-                    console.log(`Usuario ${socket.id} salió de la sala del pedido: ${roomPedido}`);
-                }
-            } catch (err) {
-                console.error('Error en order:leave:', err);
-            }
-        });
-
-
-        socket.on('disconnect', (reason) => {
-            console.log(`usuario ${role} desconectado (socket=${socket.id}, reason=${reason})`);
-            if (role === 'repartidor') {
-                repartidorRooms.clear();
-            }
-        });
-
+          }
+        }
+      } catch {
+        // Ignore invalid sessions and failed lookups.
+      }
     });
+  });
 
-    return io;
-
-};
+  return io;
+}
 
 module.exports = { attachSocket };

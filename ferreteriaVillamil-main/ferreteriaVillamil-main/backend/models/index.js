@@ -32,6 +32,7 @@ fs
   });
 
 Object.keys(db).forEach(modelName => {
+  require('../utils/branch-context').installScope(db[modelName]);
   if (db[modelName].associate) {
     db[modelName].associate(db);
   }

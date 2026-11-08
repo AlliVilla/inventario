@@ -1,5 +1,5 @@
 # Backend Dockerfile
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Set working directory
 WORKDIR /app
@@ -20,4 +20,4 @@ RUN mkdir -p uploads
 EXPOSE 3000
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "bin/www"]

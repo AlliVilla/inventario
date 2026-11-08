@@ -123,6 +123,9 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
               className={`${isCollapsed ? 'w-12 h-12' : 'w-32 h-32'} object-contain transition-all duration-300`}
             />
           </div>
+          {!isCollapsed && userData?.sucursal && (
+            <p className="mt-2 text-center text-sm font-semibold text-[#163269]">{userData.sucursal}</p>
+          )}
           {!isMobile && (
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}

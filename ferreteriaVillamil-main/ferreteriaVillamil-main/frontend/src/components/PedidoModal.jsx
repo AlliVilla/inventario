@@ -160,14 +160,14 @@ export default function PedidoModal({ pedido, onClose, onEstadoChange }) {
                   <FaBox className="w-5 h-5 text-[#163269]" />
                   <div>
                     <p className="text-sm text-gray-500">Enlace de Seguimiento</p>
-                    {pedido.numero_pedido ? (
+                    {pedido.link_seguimiento ? (
                       <a 
-                        href={`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                        href={`${window.location.origin}${pedido.link_seguimiento}`}
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="font-medium text-blue-600 hover:underline"
                       >
-                        {`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                        {`${window.location.origin}${pedido.link_seguimiento}`}
                       </a>
                     ) : (
                       <span className="font-medium text-gray-500">No disponible</span>

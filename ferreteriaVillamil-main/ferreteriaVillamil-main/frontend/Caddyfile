@@ -1,0 +1,14 @@
+{$SITE_DOMAIN} {
+    header Referrer-Policy no-referrer
+    header X-Content-Type-Options nosniff
+
+    @backend path /api/* /socket.io/* /uploads/* /healthz
+    handle @backend {
+        reverse_proxy backend:3000
+    }
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}

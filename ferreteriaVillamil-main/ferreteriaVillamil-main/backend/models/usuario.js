@@ -1,6 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Usuario = sequelize.define('Usuario', {
+    id_sucursal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     id_usuario: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     nombre: DataTypes.STRING,
     correo: DataTypes.STRING,
@@ -12,8 +13,14 @@ module.exports = (sequelize, DataTypes) => {
     fecha_creacion: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
   }, {
     tableName: 'Usuario',
-    timestamps: false
+    timestamps: false,
+    defaultScope: { attributes: { exclude: ['clave'] } }
   });
+
+  Usuario.prototype.toJSON = function () {
+    const { clave, ...usuario } = this.get({ plain: true });
+    return usuario;
+  };
 
   Usuario.associate = models => {
     Usuario.hasMany(models.Pedido, {

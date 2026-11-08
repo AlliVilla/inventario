@@ -1,6 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
     const Cotizacion = sequelize.define('Cotizacion', {
+    id_sucursal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
         id_cotizacion: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
         fecha_cotizacion: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
         total: DataTypes.DECIMAL,

@@ -162,14 +162,14 @@ const DetallePedidoModal = ({ pedidoId, onClose }) => {
               </span>
             </p>
             <p><span className="font-medium">Enlace de Seguimiento:</span>
-              {pedido.numero_pedido ? (
+              {pedido.link_seguimiento ? (
                 <a
-                  href={`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                  href={`${window.location.origin}${pedido.link_seguimiento}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline ml-2"
                 >
-                  {`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                  {`${window.location.origin}${pedido.link_seguimiento}`}
                 </a>
               ) : (
                 <span className="text-gray-500 ml-2">No disponible</span>

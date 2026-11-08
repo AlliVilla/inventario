@@ -1,4 +1,5 @@
-const { Detalle_Pedido, Articulo, Pedido, sequelize } = require('../models');
+const { stock } = require('../utils/inventory');
+const { Detalle_Pedido, Pedido, sequelize } = require('../models');
 
 function checkForNull(data, res) {
     if (!data || Object.keys(data).length === 0) {
@@ -50,10 +51,7 @@ const nuevoDetalle = async (request, response) => {
             });
         }
 
-        const articulo = await Articulo.findByPk(data.id_articulo, {
-            transaction,
-            lock: transaction.LOCK.UPDATE
-        });
+        const articulo = await stock(data.id_articulo, transaction);
 
         if (!articulo) {
             await transaction.rollback();
@@ -141,7 +139,7 @@ const deleteDetalle = async (request, response) => {
 
         // Si el pedido ya fue entregado, devolvemos el stock
         if (pedido.estado === 'Entregado') {
-            const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
+            const articulo = await stock(detalle.id_articulo, transaction, true);
             if (articulo) {
                 await articulo.update({
                     cantidad_existencia: Number(articulo.cantidad_existencia || 0) + Number(detalle.cantidad || 0)

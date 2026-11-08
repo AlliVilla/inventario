@@ -1,6 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Venta = sequelize.define('Venta', {
+    id_sucursal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     id_venta: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     fecha_venta: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     total: DataTypes.DECIMAL,

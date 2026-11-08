@@ -1,9 +1,17 @@
+const { stock } = require('../utils/inventory');
 const { Venta, Detalle_Venta, Articulo, sequelize } = require('../models');
 
 exports.createVenta = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { cliente_nombre, items, total, id_usuario_vendedor } = req.body;
+        const { cliente_nombre, items, total } = req.body;
+        const id_usuario_vendedor = req.usuario.id_usuario;
+        if (!Array.isArray(items) || !items.length || items.some(item =>
+            !item || !Number.isSafeInteger(Number(item.cantidad)) || Number(item.cantidad) < 1
+        )) {
+            await transaction.rollback();
+            return res.status(400).json({ message: 'Cada artículo debe tener una cantidad entera positiva' });
+        }
 
         // 1. Crear la Venta
         const venta = await Venta.create({
@@ -17,13 +25,13 @@ exports.createVenta = async (req, res) => {
             const { id_articulo, cantidad, precio_unitario, subtotal } = item;
 
             // Verificar stock
-            const articulo = await Articulo.findByPk(id_articulo, { transaction });
+            const articulo = await stock(id_articulo, transaction);
             if (!articulo) {
                 throw new Error(`Articulo con ID ${id_articulo} no encontrado.`);
             }
 
             if (articulo.cantidad_existencia < cantidad) {
-                throw new Error(`Stock insuficiente para el artículo: ${articulo.nombre}`);
+                throw new Error(`Stock insuficiente para el artículo: ${articulo.id_articulo}`);
             }
 
             // Crear Detalle
@@ -74,15 +82,17 @@ exports.cancelVenta = async (req, res) => {
 
         const venta = await Venta.findByPk(id, {
             include: [{ model: Detalle_Venta }],
-            transaction
+            transaction,
+            lock: { level: transaction.LOCK.UPDATE, of: Venta }
         });
 
         if (!venta) {
-            console.log("Venta ID", id, "no encontrada");
+            await transaction.rollback();
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
         if (venta.estado === 'Cancelada') {
+            await transaction.rollback();
             return res.status(400).json({ message: 'La venta ya ha sido cancelada' });
         }
 
@@ -91,9 +101,9 @@ exports.cancelVenta = async (req, res) => {
         console.log("Detalles encontrados para la venta:", detalles.length);
 
         for (const detalle of detalles) {
-            const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
+            const articulo = await stock(detalle.id_articulo, transaction, true);
             if (articulo) {
-                console.log("Reponiendo stock para artículo:", articulo.nombre, "Cantidad:", detalle.cantidad);
+                console.log("Reponiendo stock para artículo:", articulo.id_articulo, "Cantidad:", detalle.cantidad);
                 await articulo.increment('cantidad_existencia', { by: detalle.cantidad, transaction });
             }
         }
@@ -117,10 +127,11 @@ exports.removeItem = async (req, res) => {
     try {
         const { id_venta, id_detalle } = req.params;
 
-        const venta = await Venta.findByPk(id_venta, { transaction });
+        const venta = await Venta.findByPk(id_venta, { transaction, lock: transaction.LOCK.UPDATE });
         if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
 
         if (venta.estado === 'Cancelada') {
+            await transaction.rollback();
             return res.status(400).json({ message: 'No se puede devolver productos de una venta ya cancelada en su totalidad' });
         }
 
@@ -130,11 +141,12 @@ exports.removeItem = async (req, res) => {
         });
 
         if (!detalle) {
+            await transaction.rollback();
             return res.status(404).json({ message: 'Detalle de venta no encontrado' });
         }
 
         // Devolver stock
-        const articulo = await Articulo.findByPk(detalle.id_articulo, { transaction });
+        const articulo = await stock(detalle.id_articulo, transaction, true);
         if (articulo) {
             await articulo.increment('cantidad_existencia', { by: detalle.cantidad, transaction });
         }

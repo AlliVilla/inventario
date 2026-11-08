@@ -1,6 +1,7 @@
 'use strict';
 module.exports = (sequelize, DataTypes) => {
   const Detalle_Pedido = sequelize.define('Detalle_Pedido', {
+    id_sucursal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     id_detalle: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     id_pedido: DataTypes.INTEGER,
     id_articulo: DataTypes.INTEGER,

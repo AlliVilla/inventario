@@ -191,14 +191,14 @@ export default function PedidoCardRepartidor() {
               </div>
               <div className="flex">
                 <span className="font-medium w-32 text-gray-600">Enlace de Seguimiento:</span>
-                {pedido.numero_pedido ? (
+                {pedido.link_seguimiento ? (
                   <a 
-                    href={`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                    href={`${window.location.origin}${pedido.link_seguimiento}`}
                     className="text-blue-600 hover:underline text-sm break-all"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {`${window.location.origin}/cliente/tracking/${pedido.numero_pedido}`}
+                    {`${window.location.origin}${pedido.link_seguimiento}`}
                   </a>
                 ) : (
                   <span className="text-gray-800 text-sm">N/A</span>

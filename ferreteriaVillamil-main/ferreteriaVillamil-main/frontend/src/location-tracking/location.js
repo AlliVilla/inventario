@@ -11,6 +11,7 @@ export function connectSocket(serverUrl) {
 
   const url = serverUrl || window.location.origin;
   socket = io(url, {
+    auth: (callback) => callback({ token: localStorage.getItem('token') }),
     transports: ['websocket', 'polling'],
     timeout: 5000
   });

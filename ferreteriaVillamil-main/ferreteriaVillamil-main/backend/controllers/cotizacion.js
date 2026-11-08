@@ -3,7 +3,8 @@ const { Cotizacion, Detalle_Cotizacion, Articulo, sequelize } = require('../mode
 exports.createCotizacion = async (req, res) => {
     const transaction = await sequelize.transaction();
     try {
-        const { cliente_nombre, items, total, id_usuario_vendedor } = req.body;
+        const { cliente_nombre, items, total } = req.body;
+        const id_usuario_vendedor = req.usuario.id_usuario;
 
         // 1. Crear la Cotizacion
         const cotizacion = await Cotizacion.create({

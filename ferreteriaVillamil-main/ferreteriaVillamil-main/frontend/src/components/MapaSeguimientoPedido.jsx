@@ -69,9 +69,8 @@ function MapaSeguimientoPedido({ pedidoId: pedidoIdProp }) {
         setLoading(true);
       }
 
-      // Ruta pública sin /api ya que está montada directamente en /cliente/tracking
       const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '';
-      const response = await fetch(`${baseUrl || ''}/cliente/tracking/${pedidoId}`);
+      const response = await fetch(`${baseUrl || ''}/api/public/tracking/${pedidoId}`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -312,15 +311,14 @@ function MapaSeguimientoPedido({ pedidoId: pedidoIdProp }) {
     setCalificacionError('');
 
     try {
-      // Ruta pública sin /api ya que está montada directamente en /cliente/tracking
       const baseUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '';
-      const response = await fetch(`${baseUrl || ''}/cliente/tracking/calificar`, {
+      const response = await fetch(`${baseUrl || ''}/api/public/tracking/calificar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id_pedido: pedidoData.id_pedido,
+          trackingToken: pedidoId,
           puntuacion: calificacionPuntuacion,
           comentario: calificacionComentario.trim() || null,
         }),

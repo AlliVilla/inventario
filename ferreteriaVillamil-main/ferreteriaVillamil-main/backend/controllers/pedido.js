@@ -1,10 +1,9 @@
+const { stock } = require('../utils/inventory');
 const { Pedido, Usuario, Detalle_Pedido, Articulo, Calificacion, sequelize } = require("../models");
 
-// Función para generar enlace de tracking
-const generarEnlaceTracking = (pedidoId) => {
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  return `${baseUrl}/cliente/tracking/${pedidoId}`;
-};
+const { randomInt } = require('node:crypto');
+const { verify } = require('../utils/tokens');
+
 
 // Función auxiliar para descontar inventario
 const deductStockForOrder = async (pedidoId, transaction) => {
@@ -25,10 +24,7 @@ const deductStockForOrder = async (pedidoId, transaction) => {
   }
 
   for (const [idArticulo, cantidad] of cantidadesPorArticulo.entries()) {
-    const articulo = await Articulo.findByPk(idArticulo, {
-      transaction,
-      lock: transaction.LOCK.UPDATE
-    });
+    const articulo = await stock(idArticulo, transaction);
 
     if (!articulo) {
       throw new Error(`Artículo asociado al pedido no encontrado (id_articulo: ${idArticulo})`);
@@ -36,7 +32,7 @@ const deductStockForOrder = async (pedidoId, transaction) => {
 
     const existenciaActual = Number(articulo.cantidad_existencia ?? 0);
     if (existenciaActual < cantidad) {
-      throw new Error(`Stock insuficiente para el artículo ${articulo.nombre} al confirmar entrega.`);
+      throw new Error(`Stock insuficiente para el artículo ${idArticulo} al confirmar entrega.`);
     }
 
     await articulo.update(
@@ -74,16 +70,13 @@ const createNewPedido = async (request, response) => {
     // Agregar código de confirmación al body del pedido
     const pedidoData = {
       ...request.body,
+      id_admin_creador: request.usuario.id_usuario,
+      id_repartidor_asignado: null,
+      estado: "Pendiente",
       codigo_confirmacion: codigo,
     };
 
     const newPedido = await Pedido.create(pedidoData);
-
-    // Generar enlace de tracking
-    const trackingLink = generarEnlaceTracking(newPedido.id_pedido);
-
-    // Actualizar el pedido con el enlace de tracking
-    await newPedido.update({ link_seguimiento: trackingLink });
 
     return response.status(201).json({
       status: "success",
@@ -182,7 +175,10 @@ const updatePedido = async (request, response) => {
         message: "Pedido not found",
       });
     }
-    await pedido.update(request.body);
+    await pedido.update(request.body, {
+      fields: ['numero_pedido', 'cliente_nombre', 'cliente_telefono', 'cliente_identidad',
+        'direccion_entrega', 'observacion', 'costo_envio', 'total']
+    });
     return response.status(200).json({
       status: "success",
       data: pedido,
@@ -280,9 +276,15 @@ const asignarRepartidor = async (request, response) => {
         message: "Pedido not found",
       });
     }
-    await pedido.update({ id_repartidor_asignado: id_repartidor });
-    await pedido.update({ estado: "Asignado" });
-    await pedido.update({ fecha_asignacion: new Date() });
+    const repartidor = await Usuario.findOne({
+      where: { id_usuario: id_repartidor, rol: 'Repartidor', estado: 'Activo' }
+    });
+    if (!repartidor) return response.status(404).json({ message: 'Repartidor no disponible en esta sucursal' });
+    await pedido.update({
+      id_repartidor_asignado: repartidor.id_usuario,
+      estado: 'Asignado',
+      fecha_asignacion: new Date()
+    });
 
     return response.status(200).json({
       status: "success",
@@ -299,28 +301,25 @@ const asignarRepartidor = async (request, response) => {
 };
 
 const generarCodigo = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 };
 
 const mandarCodigoEntregado = async (request, response) => {
   const { id } = request.params;
 
   try {
-    const pedido = await Pedido.findByPk(id);
-
-    if (!pedido) {
-      return response.status(404).json({
-        status: "Not Found",
-        message: "Pedido not found",
-      });
+    const where = { id_pedido: id, estado: 'Asignado' };
+    if (request.usuario.rol === 'Repartidor') {
+      where.id_repartidor_asignado = request.usuario.id_usuario;
     }
-
     const codigo = generarCodigo();
-
-    await pedido.update({
+    const [updated] = await Pedido.update({
       codigo_confirmacion: codigo,
-      estado: "En transcurso",
-    });
+      estado: 'En transcurso'
+    }, { where });
+    if (!updated) {
+      return response.status(409).json({ message: 'El pedido no está disponible para iniciar la entrega' });
+    }
 
     return response.status(200).json({
       status: "success",
@@ -340,14 +339,19 @@ const validarCodigoEntregado = async (request, response) => {
   const { id, codigo } = request.params;
   const transaction = await sequelize.transaction();
   try {
-    const pedido = await Pedido.findByPk(id, { transaction });
+    const pedido = await Pedido.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+    if (pedido && request.usuario.rol === 'Repartidor' &&
+        pedido.id_repartidor_asignado !== request.usuario.id_usuario) {
+      await transaction.rollback();
+      return response.sendStatus(404);
+    }
     if (!pedido) {
       await transaction.rollback();
       return response
         .status(404)
         .json({ status: "Not Found", message: "Pedido not found" });
     }
-    if (pedido.codigo_confirmacion !== codigo) {
+    if (pedido.estado !== 'En transcurso' || pedido.codigo_confirmacion !== codigo) {
       await transaction.rollback();
       return response.status(400).json({
         status: "Bad Request",
@@ -366,7 +370,7 @@ const validarCodigoEntregado = async (request, response) => {
       });
     }
 
-    await pedido.update({ estado: "Entregado", fecha_entrega: new Date() }, { transaction });
+    await pedido.update({ estado: "Entregado", fecha_entrega: new Date(), codigo_confirmacion: null }, { transaction });
 
     await transaction.commit();
     return response
@@ -489,10 +493,7 @@ const cancelarPedidoConReposicionInventario = async (pedidoId, transaction) => {
     }
 
     for (const [idArticulo, cantidad] of cantidadesPorArticulo.entries()) {
-      const articulo = await Articulo.findByPk(idArticulo, {
-        transaction,
-        lock: transaction.LOCK.UPDATE
-      });
+      const articulo = await stock(idArticulo, transaction);
 
       if (!articulo) {
         return {
@@ -685,10 +686,18 @@ const getDetallesPedido = async (request, response) => {
 
 const getPedidoClienteTracking = async (request, response) => {
   try {
-    const { id } = request.params;
+    let id;
+    try {
+      ({ id } = verify(request.params.id, 'tracking'));
+    } catch {
+      return response.sendStatus(404);
+    }
 
     const pedido = await Pedido.findOne({
-      where: { numero_pedido: id },
+      where: { id_pedido: id },
+      attributes: ['id_pedido', 'numero_pedido', 'estado', 'total', 'costo_envio',
+        'fecha_creacion', 'fecha_asignacion', 'fecha_entrega', 'motivo_cancelacion',
+        'direccion_entrega', 'codigo_confirmacion'],
       include: [
         {
           model: Usuario,
@@ -725,10 +734,9 @@ const getPedidoClienteTracking = async (request, response) => {
       });
     }
 
-    return response.status(200).json({
-      status: "success",
-      data: pedido,
-    });
+    const data = pedido.toJSON();
+    if (data.estado !== 'En transcurso') delete data.codigo_confirmacion;
+    return response.status(200).json({ status: 'success', data });
   } catch (error) {
     console.error("Error en getPedidoClienteTracking:", error);
     return response.status(500).json({

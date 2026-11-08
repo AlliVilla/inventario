@@ -1,6 +1,8 @@
 'use strict';
+const { trackingPath } = require('../utils/tokens');
 module.exports = (sequelize, DataTypes) => {
   const Pedido = sequelize.define('Pedido', {
+    id_sucursal: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     id_pedido: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     numero_pedido: DataTypes.STRING,
     cliente_nombre: DataTypes.STRING,
@@ -19,7 +21,13 @@ module.exports = (sequelize, DataTypes) => {
     fecha_entrega: DataTypes.DATE,
     fecha_cancelacion: DataTypes.DATE,
     motivo_cancelacion: DataTypes.STRING,
-    link_seguimiento: DataTypes.STRING
+    link_seguimiento: {
+      type: DataTypes.STRING,
+      get() {
+        const id = this.getDataValue('id_pedido');
+        return id ? trackingPath(id) : null;
+      }
+    }
   }, {
     tableName: 'Pedido',
     timestamps: false

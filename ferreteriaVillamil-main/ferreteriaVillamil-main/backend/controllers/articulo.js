@@ -1,5 +1,6 @@
-const { Articulo, Detalle_Pedido, sequelize } = require('../models');
-const { Op, Sequelize } = require("sequelize");
+const { attachStock, updateStock } = require('../utils/inventory');
+const { Articulo, sequelize } = require('../models');
+const { Op } = require("sequelize");
 const { uploadImage } = require('../middleware/upload');
 
 function checkForNull(data, res) {
@@ -35,7 +36,10 @@ const nuevoArticulo = async (request, response) => {
             where: { codigo: data.codigo }
         });
         if (!check) {
-            const newArticulo = await Articulo.create(data);
+            const newArticulo = await sequelize.transaction(async transaction => {
+                const articulo = await Articulo.create(data, { transaction });
+                return updateStock(articulo, data, transaction);
+            });
             return response.status(201).json({
                 status: "Success",
                 message: "Creado articulo con éxito",
@@ -91,11 +95,14 @@ const editArticulo = async (request, response) => {
         });
 
         if (articulo) {
-            await articulo.update(data)
+            const updated = await sequelize.transaction(async transaction => {
+                await articulo.update(data, { transaction });
+                return updateStock(articulo, data, transaction);
+            });
             return response.status(200).json({
                 status: "Success",
                 message: "Item updated successfully",
-                data: articulo
+                data: updated
             });
         } else {
             return response.status(404).json({
@@ -116,13 +123,8 @@ const editArticulo = async (request, response) => {
 
 const lowStockItems = async (request, response) => {
     try {
-        const items = await Articulo.findAll({
-            where: {
-                cantidad_existencia: {
-                    [Op.lte]: Sequelize.col('stock_minimo')
-                }
-            }
-        })
+        const items = (await attachStock(await Articulo.findAll()))
+            .filter(item => Number(item.cantidad_existencia) <= Number(item.stock_minimo));
 
         return response.status(200).json({
             status: "Success",
@@ -162,12 +164,12 @@ const getAllItems = async (request, response) => {
             where,
             limit: parseInt(limit),
             order: [['id_articulo', 'ASC']],
-            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'costo_unitario', 'cantidad_existencia', 'foto_url', 'estado']
+            attributes: ['id_articulo', 'codigo', 'nombre', 'descripcion', 'precio', 'costo_unitario', 'foto_url', 'estado']
         });
 
         return response.status(200).json({
             status: "Success",
-            data: items,
+            data: await attachStock(items),
             count: items.length
         });
     } catch (error) {
@@ -205,13 +207,13 @@ const getAllActiveItems = async (request, response) => {
             where,
             limit: lim,
             order: [['nombre', 'ASC']],
-            attributes: ['id_articulo', 'codigo', 'nombre', 'precio', 'cantidad_existencia', 'foto_url', 'estado'],
+            attributes: ['id_articulo', 'codigo', 'nombre', 'precio', 'foto_url', 'estado'],
             raw: true
         });
 
         return response.status(200).json({
             status: "Success",
-            data: items,
+            data: await attachStock(items),
             count: items.length
         });
     } catch (error) {
@@ -245,7 +247,7 @@ const getItemByID = async (request, response) => {
         }
         return response.status(200).json({
             status: "Success",
-            data: item
+            data: (await attachStock([item]))[0]
         });
 
     } catch (error) {
@@ -275,20 +277,14 @@ const deleteItem = async (request, response) => {
             });
         }
 
-        await Detalle_Pedido.destroy({
-            where: { id_articulo: item.id_articulo },
-            transaction
-        });
-
-
-        await item.destroy({ transaction });
+        await item.update({ estado: 'Inactivo' }, { transaction });
 
         // 3️⃣ confirmar
         await transaction.commit();
 
         return response.status(200).json({
             status: "Success",
-            message: "Item and related details deleted successfully"
+            message: "Artículo desactivado en el catálogo compartido"
         });
 
     } catch (error) {
@@ -302,24 +298,13 @@ const deleteItem = async (request, response) => {
 
 const getInventoryStats = async (request, response) => {
     try {
-        const result = await Articulo.findAll({
-            attributes: [
-                [sequelize.fn('SUM', sequelize.literal('cantidad_existencia * costo_unitario')), 'valorTotal'],
-                [sequelize.fn('SUM', sequelize.col('cantidad_existencia')), 'unidadesTotales'],
-                [sequelize.fn('COUNT', sequelize.col('id_articulo')), 'totalProductos']
-            ],
-            raw: true
-        });
-
-        const stats = result[0] || {};
-
+        const items = await attachStock(await Articulo.findAll());
+        const unidadesTotales = items.reduce((sum, item) => sum + Number(item.cantidad_existencia), 0);
+        const valorInventario = items.reduce((sum, item) =>
+            sum + Number(item.cantidad_existencia) * Number(item.costo_unitario), 0);
         return response.status(200).json({
-            status: "Success",
-            data: {
-                valorInventario: parseFloat(stats.valorTotal) || 0,
-                unidadesTotales: parseInt(stats.unidadesTotales) || 0,
-                totalProductos: parseInt(stats.totalProductos) || 0
-            }
+            status: 'Success',
+            data: { valorInventario, unidadesTotales, totalProductos: items.length }
         });
     } catch (error) {
         console.error("Error in getInventoryStats:", error);

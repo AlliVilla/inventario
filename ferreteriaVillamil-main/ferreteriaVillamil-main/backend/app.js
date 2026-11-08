@@ -14,30 +14,30 @@ var usuarioController = require("./controllers/usuario");
 var detallesRouter = require('./routes/detalles');
 var ventaRouter = require("./routes/venta");
 var cotizacionRouter = require("./routes/cotizacion");
-var authMiddleware = require("./middleware/auth");
+const { authenticate, admin } = require("./middleware/auth");
+require("./utils/tokens").secret();
+const { limitAttempts } = require('./middleware/limit-attempts');
 var app = express();
 
 // view engine setup
 app.set("views", path.join(__dirname, "..", "views"));
 app.set("view engine", "jade");
 
-app.use(logger("dev"));
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
+app.use(logger("dev", {
+  skip: req => (req.path.startsWith('/cliente/tracking') || req.path.startsWith('/api/public/tracking')) || req.path.endsWith('/validar-codigo')
+}));
 // Obtener URLs permitidas desde variables de entorno
 const getOrigins = () => {
-  const origins = [
-    'https://localhost:5173',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ];
-
-  if (process.env.FRONTEND_URL) {
-    origins.push(process.env.FRONTEND_URL);
+  const origins = [process.env.FRONTEND_URL].filter(Boolean);
+  if (process.env.NODE_ENV !== 'production') {
+    origins.push('https://localhost:5173', 'http://localhost:5173', 'http://localhost:3000');
   }
-  origins.push(/^https?:\/\/(?:localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+):[0-9]+$/);
-
-  // Agregar cualquier dominio de Cloudflare Tunnel u Render
-  origins.push(/^https:\/\/.*\.trycloudflare\.com$/);
-  origins.push(/^https:\/\/.*\.onrender\.com$/);
 
   return origins;
 };
@@ -54,20 +54,23 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.use('/uploads', express.static(path.join(__dirname, "uploads")));
 
-app.use("/api/articulos", authMiddleware, articuloRouter);
-app.use("/api/usuarios", authMiddleware, usuarioRouter);
-app.use("/api/pedidos", authMiddleware, pedidoRouter);
-app.use("/api/calificaciones", authMiddleware, calificacionRouter);
-app.use("/api/estadisticas", authMiddleware, estadisticasRouter);
-app.use("/api/detalles", authMiddleware, detallesRouter);
-app.use("/api/ventas", authMiddleware, ventaRouter);
-app.use("/api/cotizaciones", authMiddleware, cotizacionRouter);
+app.use("/api/articulos", authenticate, admin, articuloRouter);
+app.use("/api/usuarios", authenticate, admin, usuarioRouter);
+app.use("/api/pedidos", authenticate, pedidoRouter);
+app.use("/api/calificaciones", authenticate, admin, calificacionRouter);
+app.use("/api/estadisticas", authenticate, admin, estadisticasRouter);
+app.use("/api/detalles", authenticate, admin, detallesRouter);
+app.use("/api/ventas", authenticate, admin, ventaRouter);
+app.use("/api/cotizaciones", authenticate, admin, cotizacionRouter);
 
 // Ruta pública para tracking de pedidos (sin autenticación)
 app.use("/cliente/tracking", trackingRouter);
+app.use("/api/public/tracking", trackingRouter);
+
+app.get('/healthz', (req, res) => res.sendStatus(200));
 
 // Login endpoint (no necesita autenticación)
-app.post("/api/login", usuarioController.loginUsuario);
+app.post("/api/login", limitAttempts(20, req => req.ip), usuarioController.loginUsuario);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -86,7 +89,7 @@ app.use(function (err, req, res, next) {
   if (req.accepts("json") || req.path.startsWith("/api")) {
     return res.json({
       error: {
-        message: err.message,
+        message: req.app.get("env") === "production" && (err.status || 500) >= 500 ? "Error interno" : err.message,
         status: err.status || 500,
         ...(req.app.get("env") === "development" && { stack: err.stack }),
       },

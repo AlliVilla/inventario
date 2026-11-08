@@ -3,7 +3,7 @@ import axios from 'axios';
 import InfoRepartidorCliente from './InfoRepartidorCliente';
 
 // Crear instancia de axios sin autenticación para tracking público
-// La ruta pública está montada en /cliente/tracking, no en /api
+// API pública de seguimiento por token
 const getBaseUrl = () => {
   const apiUrl = import.meta.env.VITE_API_URL || '';
   // Remover /api del final si existe
@@ -31,7 +31,7 @@ function DetallePedidoCliente({ pedidoId }) {
   const fetchPedidoData = async () => {
     setLoading(true);
     try {
-      const response = await publicAxios.get(`/cliente/tracking/${pedidoId}`);
+      const response = await publicAxios.get(`/api/public/tracking/${pedidoId}`);
       setPedidoData(response.data.data);
     } catch (err) {
       setError('Error al cargar datos del pedido');
@@ -70,15 +70,14 @@ function DetallePedidoCliente({ pedidoId }) {
 
   return (
     <div className="w-full max-w-2xl mx-auto bg-white rounded-lg shadow-md p-4 sm:p-6 md:p-8">
-      {/* Código de Confirmación */}
-      <div className="mb-6 sm:mb-8 text-center">
+      {pedidoData.codigo_confirmacion && <div className="mb-6 sm:mb-8 text-center">
         <p className="text-sm sm:text-base font-medium text-gray-600 mb-2">Código de Confirmación</p>
         <div className="bg-gray-100 rounded-lg p-3 sm:p-4 inline-block">
           <p className="text-lg sm:text-xl md:text-2xl font-bold" style={{ color: '#163269' }}>
             {pedidoData.codigo_confirmacion}
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* Información del Repartidor */}
       {repartidor && (

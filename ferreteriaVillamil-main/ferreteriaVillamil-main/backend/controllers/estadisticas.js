@@ -15,12 +15,13 @@ const repartidoresConEntregasYCalificaciones = async (request, response) => {
         COUNT(DISTINCT c.id_calificacion) as total_calificaciones,
         COALESCE(AVG(c.puntuacion), NULL) as promedio_calificacion
       FROM "Usuario" u
-      LEFT JOIN "Pedido" p ON p.id_repartidor_asignado = u.id_usuario
+      LEFT JOIN "Pedido" p ON p.id_repartidor_asignado = u.id_usuario AND p.id_sucursal = u.id_sucursal
       LEFT JOIN "Calificacion" c ON c.id_pedido = p.id_pedido AND p.estado = 'Entregado'
-      WHERE u.rol = 'Repartidor'
+      WHERE u.rol = 'Repartidor' AND u.id_sucursal = :sucursal
       GROUP BY u.id_usuario, u.nombre, u.correo, u.telefono
       ORDER BY u.nombre
     `, {
+      replacements: { sucursal: request.usuario.id_sucursal },
       type: Sequelize.QueryTypes.SELECT
     });
 
@@ -58,9 +59,11 @@ const pedidosPorEstado = async (request, response) => {
         estado,
         COUNT(*) as cantidad
       FROM "Pedido"
+      WHERE id_sucursal = :sucursal
       GROUP BY estado
       ORDER BY estado
     `, {
+      replacements: { sucursal: request.usuario.id_sucursal },
       type: Sequelize.QueryTypes.SELECT
     });
 
@@ -140,12 +143,12 @@ const productosVentasPorPeriodo = async (request, response) => {
       FROM "Articulo" a
       INNER JOIN "Detalle_Pedido" dp ON dp.id_articulo = a.id_articulo
       INNER JOIN "Pedido" p ON p.id_pedido = dp.id_pedido
-      WHERE p.estado = 'Entregado'
+      WHERE p.estado = 'Entregado' AND p.id_sucursal = :sucursal
         AND p.fecha_entrega BETWEEN :fechaInicio AND :fechaFin
       GROUP BY a.id_articulo, a.codigo, a.nombre, a.precio
       ORDER BY cantidad_vendida DESC
     `, {
-      replacements: { fechaInicio: fechaInicioISO, fechaFin: fechaFinISO },
+      replacements: { sucursal: request.usuario.id_sucursal, fechaInicio: fechaInicioISO, fechaFin: fechaFinISO },
       type: Sequelize.QueryTypes.SELECT
     });
 
@@ -180,19 +183,17 @@ const productosProximosAgotarse = async (request, response) => {
   try {
     const resultado = await sequelize.query(
       `
-      SELECT 
-        id_articulo,
-        codigo,
-        nombre,
-        cantidad_existencia,
-        stock_minimo,
-        (cantidad_existencia - stock_minimo) as diferencia,
-        precio,
-        estado
-      FROM "Articulo"
-      WHERE cantidad_existencia <= stock_minimo
+      SELECT
+        a.id_articulo, a.codigo, a.nombre, a.precio, a.estado,
+        COALESCE(e.cantidad_existencia, 0) AS cantidad_existencia,
+        COALESCE(e.stock_minimo, 0) AS stock_minimo,
+        COALESCE(e.cantidad_existencia, 0) - COALESCE(e.stock_minimo, 0) AS diferencia
+      FROM "Articulo" a
+      LEFT JOIN "Existencia" e ON e.id_articulo = a.id_articulo AND e.id_sucursal = :sucursal
+      WHERE COALESCE(e.cantidad_existencia, 0) <= COALESCE(e.stock_minimo, 0)
       ORDER BY cantidad_existencia ASC
     `, {
+      replacements: { sucursal: request.usuario.id_sucursal },
       type: Sequelize.QueryTypes.SELECT
     });
 
@@ -230,11 +231,12 @@ const proyeccionGananciaPorMes = async (request, response) => {
         COALESCE(SUM(total), 0) as total_ganancia,
         COUNT(*) as cantidad_pedidos
       FROM "Pedido"
-      WHERE estado = 'Entregado'
+      WHERE estado = 'Entregado' AND id_sucursal = :sucursal
         AND fecha_entrega IS NOT NULL
       GROUP BY DATE_TRUNC('month', fecha_entrega)
       ORDER BY fecha_mes ASC
     `, {
+      replacements: { sucursal: request.usuario.id_sucursal },
       type: Sequelize.QueryTypes.SELECT
     });
 

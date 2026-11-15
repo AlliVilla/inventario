@@ -11,7 +11,6 @@
     "db:s:undo": "sequelize-cli db:seed:undo:all"
   },
   "dependencies": {
-    "-": "^0.0.1",
     "@supabase/supabase-js": "^2.106.1",
     "bcrypt": "^6.0.0",
     "cookie-parser": "~1.4.4",

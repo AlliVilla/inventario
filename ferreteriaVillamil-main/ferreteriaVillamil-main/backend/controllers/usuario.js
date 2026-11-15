@@ -5,13 +5,13 @@ const { uploadImage } = require('../middleware/upload');
 
 const createUsuario = async (req, res) => {
   try {
-    const { nombre, correo, clave, telefono, rol, foto_perfil } = req.body;
+    const { nombre, correo, clave, telefono, rol, foto_perfil, id_sucursal } = req.body;
 
     if (!nombre || !correo || !clave || !telefono || !rol) {
       return res.status(400).json({ message: "Faltan datos obligatorios" });
     }
 
-    if (await Usuario.findOne({ where: { correo } })) {
+    if (await Usuario.unscoped().findOne({ where: { correo } })) {
       return res
         .status(409)
         .json({ message: "El correo ya está registrado" });
@@ -24,7 +24,8 @@ const createUsuario = async (req, res) => {
       clave: pw,
       telefono,
       rol,
-      foto_perfil
+      foto_perfil,
+      ...(id_sucursal ? { id_sucursal: parseInt(id_sucursal, 10) } : {})
     });
 
     res
@@ -38,8 +39,8 @@ const createUsuario = async (req, res) => {
 const updateUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, correo, clave, telefono, rol, estado } = req.body;
-    const usuario = await Usuario.findByPk(id);
+    const { nombre, correo, clave, telefono, rol, estado, id_sucursal } = req.body;
+    const usuario = await Usuario.unscoped().findByPk(id);
     if (!usuario) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
@@ -62,21 +63,37 @@ const updateUsuario = async (req, res) => {
     usuario.telefono = telefono || usuario.telefono;
     usuario.rol = rol || usuario.rol;
     usuario.estado = estado || usuario.estado;
+    if (id_sucursal) {
+      usuario.id_sucursal = parseInt(id_sucursal, 10);
+    }
     usuario.foto_perfil = req.body.foto_perfil !== undefined ? req.body.foto_perfil : usuario.foto_perfil;
     await usuario.save();
     res
       .status(200)
       .json({ message: "Usuario actualizado exitosamente", usuario });
   } catch (error) {
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        message: "No se puede transferir de sucursal a este usuario porque ya tiene pedidos o ventas asociadas a su sede actual."
+      });
+    }
     res
       .status(500)
-      .json({ error, message: "Error interno actualizando usuario" });
+      .json({ error, message: error.message || "Error interno actualizando usuario" });
   }
 };
 
 const getUsuario = async (req, res) => {
   try {
-    const usuarios = await Usuario.findAll();
+    const usuarios = await Usuario.unscoped().findAll({
+      include: [
+        {
+          model: Sucursal,
+          attributes: ['id_sucursal', 'nombre']
+        }
+      ],
+      order: [['id_usuario', 'ASC']]
+    });
     res.status(200).json(usuarios);
   } catch (error) {
     res
@@ -88,7 +105,14 @@ const getUsuario = async (req, res) => {
 const getUsuarioById = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = await Usuario.findByPk(id);
+    const usuario = await Usuario.unscoped().findByPk(id, {
+      include: [
+        {
+          model: Sucursal,
+          attributes: ['id_sucursal', 'nombre']
+        }
+      ]
+    });
     if (!usuario) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
@@ -103,7 +127,7 @@ const getUsuarioById = async (req, res) => {
 const softDeleteUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = await Usuario.findByPk(id);
+    const usuario = await Usuario.unscoped().findByPk(id);
     if (!usuario) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }
@@ -120,7 +144,7 @@ const softDeleteUsuario = async (req, res) => {
 const deleteUsuario = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = await Usuario.findByPk(id);
+    const usuario = await Usuario.unscoped().findByPk(id);
     if (!usuario) {
       return res.status(404).json({ message: "Usuario no encontrado" });
     }

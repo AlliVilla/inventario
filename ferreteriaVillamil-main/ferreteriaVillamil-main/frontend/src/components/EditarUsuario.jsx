@@ -18,6 +18,8 @@ function EditarUsuario() {
   const [fetchingUser, setFetchingUser] = useState(true);
   const [previewImage, setPreviewImage] = useState(null);
   const [userData, setUserData] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
+  const [idSucursal, setIdSucursal] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ function EditarUsuario() {
         setCorreo(userData.correo);
         setTelefono(userData.telefono);
         setRol(userData.rol);
+        setIdSucursal(userData.id_sucursal);
         setUserData(userData); // Guardar datos completos del usuario
         if (userData.foto_perfil) {
           // Remove leading / if present and construct proper URL
@@ -50,6 +53,20 @@ function EditarUsuario() {
       }
     };
 
+    const fetchSucursales = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/sucursales`
+        );
+        if (res.data?.data) {
+          setSucursales(res.data.data);
+        }
+      } catch (err) {
+        console.error("Error al cargar sucursales:", err);
+      }
+    };
+
+    fetchSucursales();
     if (id) {
       fetchUser();
     }
@@ -84,6 +101,10 @@ function EditarUsuario() {
         telefono,
         rol,
       };
+
+      if (idSucursal) {
+        updateData.id_sucursal = idSucursal;
+      }
 
       if (clave.trim() !== "") {
         updateData.clave = clave;
@@ -137,7 +158,8 @@ function EditarUsuario() {
 
       navigate("/admin/usuarios");
     } catch (err) {
-      message.error("Error al actualizar usuario");
+      console.error("Error al actualizar usuario:", err);
+      message.error(err.response?.data?.message || "Error al actualizar usuario");
     } finally {
       setLoading(false);
     }
@@ -282,8 +304,26 @@ function EditarUsuario() {
                         className="w-full px-4 py-3 bg-gray-200 border border-gray-300 rounded-lg focus:outline-none focus:bg-white transition-colors"
                         style={{ focusBorderColor: '#163269' }}
                       >
-                        <option value="Admin">Admin</option>
+                        <option value="Administrador">Administrador</option>
                         <option value="Repartidor">Repartidor</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
+                        Sucursal / Sede:
+                      </label>
+                      <select
+                        value={idSucursal || ''}
+                        onChange={(e) => setIdSucursal(Number(e.target.value))}
+                        className="w-full px-4 py-3 bg-gray-200 border border-gray-300 rounded-lg focus:outline-none focus:bg-white transition-colors font-medium"
+                        style={{ focusBorderColor: '#163269' }}
+                      >
+                        {sucursales.map((s) => (
+                          <option key={s.id_sucursal} value={s.id_sucursal}>
+                            {s.nombre} {s.esActual ? '(Tu sede actual)' : ''}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

@@ -172,12 +172,19 @@ function UserListAdmin() {
                       icon={<UserOutlined />}
                       style={{ backgroundColor: "#808080" }}
                     />
-                    <h3
-                      className="text-lg sm:text-xl font-semibold"
-                      style={{ color: "#163269" }}
-                    >
-                      {usuario.nombre}
-                    </h3>
+                    <div>
+                      <h3
+                        className="text-lg sm:text-xl font-semibold"
+                        style={{ color: "#163269" }}
+                      >
+                        {usuario.nombre}
+                      </h3>
+                      {usuario.Sucursal?.nombre && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#163269] bg-white/80 px-2.5 py-0.5 rounded-full mt-1 border border-gray-300">
+                          📍 {usuario.Sucursal.nombre}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span
                     className="px-4 sm:px-6 py-1 rounded-full text-white font-medium shadow-lg text-sm sm:text-base"

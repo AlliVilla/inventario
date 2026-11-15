@@ -23,6 +23,10 @@ module.exports = (sequelize, DataTypes) => {
   };
 
   Usuario.associate = models => {
+    Usuario.belongsTo(models.Sucursal, {
+      foreignKey: 'id_sucursal'
+    });
+
     Usuario.hasMany(models.Pedido, {
       foreignKey: 'id_admin_creador'
     });

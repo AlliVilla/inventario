@@ -23,6 +23,7 @@ import ReportesVentas from "./components/ReportesVentas.jsx";
 import Cotizaciones from "./components/Cotizaciones.jsx";
 import CotizacionNueva from "./components/CotizacionNueva.jsx";
 import TestCostos from "./components/TestCostos.jsx";
+import Sucursales from "./components/Sucursales.jsx";
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
           <Route path="pedidos/editar/:id" element={<NuevoPedidoForm />} />
           <Route path="envios" element={<ListEnviosAdmin />} />
           <Route path="perfil" element={<PerfilAdmin />} />
+          <Route path="sucursales" element={<Sucursales />} />
           <Route path="test-costos" element={<TestCostos />} />
         </Route>
 

@@ -4,13 +4,17 @@ require('dotenv').config();
 
 module.exports = {
   development: {
-
+    use_env_variable: process.env.DATABASE_URL ? 'DATABASE_URL' : undefined,
+    url: process.env.DATABASE_URL,
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || 'postgres',
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
     dialect: 'postgres',
+    dialectOptions: process.env.DATABASE_URL ? {
+      ssl: { require: true, rejectUnauthorized: false }
+    } : {}
   },
   test: {
     username: "root",
@@ -23,8 +27,8 @@ module.exports = {
     use_env_variable: 'DATABASE_URL',
     url: process.env.DATABASE_URL,
     dialect: 'postgres',
-    dialectOptions: process.env.DB_SSL === 'true' ? {
-      ssl: { require: true, rejectUnauthorized: true }
-    } : {}
+    dialectOptions: {
+      ssl: { require: true, rejectUnauthorized: false }
+    }
   }
 }

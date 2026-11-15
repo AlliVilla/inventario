@@ -14,6 +14,7 @@ var usuarioController = require("./controllers/usuario");
 var detallesRouter = require('./routes/detalles');
 var ventaRouter = require("./routes/venta");
 var cotizacionRouter = require("./routes/cotizacion");
+var sucursalRouter = require("./routes/sucursal");
 const { authenticate, admin } = require("./middleware/auth");
 require("./utils/tokens").secret();
 const { limitAttempts } = require('./middleware/limit-attempts');
@@ -62,6 +63,7 @@ app.use("/api/estadisticas", authenticate, admin, estadisticasRouter);
 app.use("/api/detalles", authenticate, admin, detallesRouter);
 app.use("/api/ventas", authenticate, admin, ventaRouter);
 app.use("/api/cotizaciones", authenticate, admin, cotizacionRouter);
+app.use("/api/sucursales", authenticate, admin, sucursalRouter);
 
 // Ruta pública para tracking de pedidos (sin autenticación)
 app.use("/cliente/tracking", trackingRouter);

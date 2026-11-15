@@ -11,7 +11,8 @@ import {
   FaTimes,
   FaShoppingCart,
   FaChartLine,
-  FaFileInvoice
+  FaFileInvoice,
+  FaStore
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -124,7 +125,11 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
             />
           </div>
           {!isCollapsed && userData?.sucursal && (
-            <p className="mt-2 text-center text-sm font-semibold text-[#163269]">{userData.sucursal}</p>
+            <div className="mt-2 text-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#163269] border border-blue-200 shadow-sm">
+                <FaStore className="text-[#BC7D3B]" /> Sede: {userData.sucursal}
+              </span>
+            </div>
           )}
           {!isMobile && (
             <button
@@ -218,6 +223,22 @@ export function SidebarAdmin({ isCollapsed: externalIsCollapsed, setIsCollapsed:
                   }`}
               >
                 Usuarios
+              </span>
+            )}
+          </Link>
+
+          <Link
+            to="/admin/sucursales"
+            className={`flex items-center gap-3 px-6 py-4 mb-2 hover:bg-gray-50 transition-colors cursor-pointer ${isActive("/admin/sucursales") ? "text-[#BC7D3B]" : "text-[#163269]"
+              }`}
+          >
+            <FaStore className="w-6 h-6 flex-shrink-0" />
+            {!isCollapsed && (
+              <span
+                className={`text-lg font-semibold ${!isActive("/admin/sucursales") && "underline"
+                  }`}
+              >
+                Sucursales
               </span>
             )}
           </Link>

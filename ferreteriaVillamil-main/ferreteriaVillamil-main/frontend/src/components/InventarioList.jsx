@@ -191,6 +191,13 @@ function InventarioList() {
     const [pdfModalOpen, setPdfModalOpen] = useState(false);
     const [pdfReportDate, setPdfReportDate] = useState(() => moment());
     const navigate = useNavigate();
+    const usuarioSesion = (() => {
+        try {
+            return JSON.parse(localStorage.getItem('usuario')) || {};
+        } catch {
+            return {};
+        }
+    })();
     const baseUrl = import.meta.env.VITE_API_URL;
     const baseImageUrl = baseUrl?.replace('/api', '') || 'http://localhost:3000';
 
@@ -440,9 +447,16 @@ function InventarioList() {
         <div className="w-full">
             <div className="max-w-7xl mx-auto">
                 {/* Header with blue bar */}
-                <h1 className="text-2xl md:text-3xl font-bold mb-5 pb-4 border-b-4" style={{ color: '#163269', borderColor: '#163269' }}>
-                    Inventario
-                </h1>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 pb-4 border-b-4" style={{ borderColor: '#163269' }}>
+                    <h1 className="text-2xl md:text-3xl font-bold" style={{ color: '#163269' }}>
+                        Inventario
+                    </h1>
+                    {usuarioSesion?.sucursal && (
+                        <div className="flex items-center gap-2 mt-2 sm:mt-0 text-sm font-semibold text-[#163269] bg-blue-50 border border-blue-200 px-3.5 py-1.5 rounded-full w-fit shadow-sm">
+                            <span>📍 Sede activa: <strong className="text-[#BC7D3B]">{usuarioSesion.sucursal}</strong></span>
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex flex-wrap justify-end gap-2 mb-6">
                     <button

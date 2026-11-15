@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input, Select, Avatar, message } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -15,7 +15,39 @@ function CrearUsuario() {
   const [rol, setRol] = useState('Repartidor');
   const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
   const fileInputRef = useRef(null);
+
+  const usuarioSesion = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('usuario')) || {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const [idSucursal, setIdSucursal] = useState(usuarioSesion.id_sucursal || 1);
+
+  useEffect(() => {
+    const fetchSucursales = async () => {
+      try {
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sucursales`
+        );
+        if (res.data?.data) {
+          setSucursales(res.data.data);
+          if (usuarioSesion?.id_sucursal) {
+            setIdSucursal(usuarioSesion.id_sucursal);
+          } else if (res.data.data.length > 0) {
+            setIdSucursal(res.data.data[0].id_sucursal);
+          }
+        }
+      } catch (err) {
+        console.error('Error cargando sucursales:', err);
+      }
+    };
+    fetchSucursales();
+  }, []);
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
@@ -46,6 +78,7 @@ function CrearUsuario() {
       formData.append('clave', clave);
       formData.append('telefono', telefono);
       formData.append('rol', rol);
+      formData.append('id_sucursal', idSucursal);
       
       if (previewImage && fileInputRef.current?.files[0]) {
         formData.append('foto_perfil', fileInputRef.current.files[0]);
@@ -215,19 +248,39 @@ function CrearUsuario() {
               </div>
             </div>
 
-            <div className="mt-5" style={{ maxWidth: '48%' }}>
-              <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
-                Rol:
-              </label>
-              <Select 
-                value={rol}
-                onChange={(value) => setRol(value)}
-                className="w-full"
-                size="large"
-              >
-                <Option value="Repartidor">Repartidor</Option>
-                <Option value="Administrador">Administrador</Option>
-              </Select>
+            <div className="mt-5 grid grid-cols-2 gap-5">
+              <div>
+                <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
+                  Rol:
+                </label>
+                <Select 
+                  value={rol}
+                  onChange={(value) => setRol(value)}
+                  className="w-full"
+                  size="large"
+                >
+                  <Option value="Repartidor">Repartidor</Option>
+                  <Option value="Administrador">Administrador</Option>
+                </Select>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-2" style={{ color: '#163269' }}>
+                  Sede Asignada:
+                </label>
+                <Select
+                  value={idSucursal}
+                  onChange={(val) => setIdSucursal(val)}
+                  className="w-full"
+                  size="large"
+                >
+                  {sucursales.map((s) => (
+                    <Option key={s.id_sucursal} value={s.id_sucursal}>
+                      {s.nombre} {s.esActual ? '(Tu sede actual)' : ''}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
             </div>
           </div>
         </div>

@@ -17,16 +17,22 @@ function installScope(model) {
   model.addHook('beforeBulkDestroy', scope);
   model.addHook('beforeBulkUpdate', options => {
     scope(options);
-    delete options.attributes.id_sucursal;
+    if (model.name !== 'Usuario' && options.attributes) {
+      delete options.attributes.id_sucursal;
+    }
   });
   model.addHook('beforeValidate', (record, options) => {
     const id = context.getStore();
     if (!id) return;
     if (record.isNewRecord) {
-      record.id_sucursal = id;
+      if (!record.id_sucursal) {
+        record.id_sucursal = id;
+      }
       if (options.fields && !options.fields.includes('id_sucursal')) options.fields.push('id_sucursal');
     } else if (record.changed('id_sucursal')) {
-      throw new Error('No se puede cambiar la sucursal del registro');
+      if (model.name !== 'Usuario') {
+        throw new Error('No se puede cambiar la sucursal del registro');
+      }
     }
   });
   model.addHook('beforeBulkCreate', records => {
